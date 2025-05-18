@@ -10,6 +10,7 @@ C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.GeneratedMS
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.AssemblyInfoInputs.cache
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.AssemblyInfo.cs
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.csproj.CoreCompileInputs.cache
+C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.sourcelink.json
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInvent.E24A0FB0.Up2Date
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\PCInventory.dll
 C:\Temp\pcinventory\PCInventory\obj\Debug\net8.0-windows\refint\PCInventory.dll

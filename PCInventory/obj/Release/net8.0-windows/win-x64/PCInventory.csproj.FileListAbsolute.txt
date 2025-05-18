@@ -474,3 +474,4 @@ C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\refint\PCInve
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.pdb
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.genruntimeconfig.cache
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\ref\PCInventory.dll
+C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.sourcelink.json
