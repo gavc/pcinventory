@@ -44,6 +44,8 @@ namespace PCInventory
             chkWindowsVersion.Checked = _settings.CheckWindowsVersion;
             chkSerialNumber.Checked = _settings.CheckSerialNumber;
             chkPendingReboot.Checked = _settings.CheckPendingReboot;
+            chkNetworkConnectionType.Checked = _settings.CheckNetworkConnectionType;
+            chkWiFiInfo.Checked = _settings.CheckWiFiInfo;
             
             // Load registry checks into listbox
             RefreshRegistryChecksList();
@@ -80,6 +82,9 @@ namespace PCInventory
             chkBIOSVersion.Checked = true;
             chkWindowsVersion.Checked = true;
             chkSerialNumber.Checked = true;
+            chkPendingReboot.Checked = true;
+            chkNetworkConnectionType.Checked = true;
+            chkWiFiInfo.Checked = true;
         }
 
         private void btnDeselectAll_Click(object sender, EventArgs e)
@@ -96,6 +101,9 @@ namespace PCInventory
             chkBIOSVersion.Checked = false;
             chkWindowsVersion.Checked = false;
             chkSerialNumber.Checked = false;
+            chkPendingReboot.Checked = false;
+            chkNetworkConnectionType.Checked = false;
+            chkWiFiInfo.Checked = false;
         }
 
         private void btnAddRegistryCheck_Click(object sender, EventArgs e)
@@ -175,6 +183,8 @@ namespace PCInventory
             _settings.CheckWindowsVersion = chkWindowsVersion.Checked;
             _settings.CheckSerialNumber = chkSerialNumber.Checked;
             _settings.CheckPendingReboot = chkPendingReboot.Checked;
+            _settings.CheckNetworkConnectionType = chkNetworkConnectionType.Checked;
+            _settings.CheckWiFiInfo = chkWiFiInfo.Checked;
             
             // Save registry check settings
             _settings.RegistryChecks.Clear();

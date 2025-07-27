@@ -42,6 +42,8 @@ namespace PCInventory
             chkFreeHDDSpace = new CheckBox();
             chkHDDSize = new CheckBox();
             chkPendingReboot = new CheckBox();
+            chkNetworkConnectionType = new CheckBox();
+            chkWiFiInfo = new CheckBox();
             btnSelectAll = new Button();
             btnDeselectAll = new Button();
             grpRegistryChecks = new GroupBox();
@@ -70,6 +72,8 @@ namespace PCInventory
             grpStandardChecks.Controls.Add(chkFreeHDDSpace);
             grpStandardChecks.Controls.Add(chkHDDSize);
             grpStandardChecks.Controls.Add(chkPendingReboot);
+            grpStandardChecks.Controls.Add(chkNetworkConnectionType);
+            grpStandardChecks.Controls.Add(chkWiFiInfo);
             grpStandardChecks.Controls.Add(btnSelectAll);
             grpStandardChecks.Controls.Add(btnDeselectAll);
             grpStandardChecks.Location = new Point(10, 10);
@@ -196,6 +200,24 @@ namespace PCInventory
             chkPendingReboot.Text = "Pending Reboot";
             chkPendingReboot.UseVisualStyleBackColor = true;
             
+            // chkNetworkConnectionType
+            chkNetworkConnectionType.AutoSize = true;
+            chkNetworkConnectionType.Location = new Point(200, 170);
+            chkNetworkConnectionType.Name = "chkNetworkConnectionType";
+            chkNetworkConnectionType.Size = new Size(170, 24);
+            chkNetworkConnectionType.TabIndex = 14;
+            chkNetworkConnectionType.Text = "Network Connection";
+            chkNetworkConnectionType.UseVisualStyleBackColor = true;
+            
+            // chkWiFiInfo
+            chkWiFiInfo.AutoSize = true;
+            chkWiFiInfo.Location = new Point(200, 200);
+            chkWiFiInfo.Name = "chkWiFiInfo";
+            chkWiFiInfo.Size = new Size(95, 24);
+            chkWiFiInfo.TabIndex = 15;
+            chkWiFiInfo.Text = "WiFi Info";
+            chkWiFiInfo.UseVisualStyleBackColor = true;
+            
             // btnSelectAll
             btnSelectAll.Location = new Point(80, 320);
             btnSelectAll.Name = "btnSelectAll";
@@ -316,6 +338,8 @@ namespace PCInventory
         private CheckBox chkFreeHDDSpace;
         private CheckBox chkHDDSize;
         private CheckBox chkPendingReboot;
+        private CheckBox chkNetworkConnectionType;
+        private CheckBox chkWiFiInfo;
         private Button btnSelectAll;
         private Button btnDeselectAll;
         private GroupBox grpRegistryChecks;

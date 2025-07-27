@@ -39,6 +39,9 @@ partial class Form1
         settingsToolStripMenuItem = new ToolStripMenuItem();
         toolStripSeparator2 = new ToolStripSeparator();
         exitToolStripMenuItem = new ToolStripMenuItem();
+        helpToolStripMenuItem = new ToolStripMenuItem();
+        aboutToolStripMenuItem = new ToolStripMenuItem();
+        openLogFolderToolStripMenuItem = new ToolStripMenuItem();
         statusStrip = new StatusStrip();
         toolStripStatusLabel = new ToolStripStatusLabel();
         toolStripProgressBar = new ToolStripProgressBar();
@@ -66,7 +69,7 @@ partial class Form1
         
         // menuStrip
         menuStrip.ImageScalingSize = new Size(20, 20);
-        menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem });
+        menuStrip.Items.AddRange(new ToolStripItem[] { fileToolStripMenuItem, helpToolStripMenuItem });
         menuStrip.Location = new Point(0, 0);
         menuStrip.Name = "menuStrip";
         menuStrip.Size = new Size(1100, 28);
@@ -134,6 +137,26 @@ partial class Form1
         exitToolStripMenuItem.Size = new Size(224, 26);
         exitToolStripMenuItem.Text = "Exit";
         exitToolStripMenuItem.Click += exitToolStripMenuItem_Click;
+
+        // helpToolStripMenuItem
+        helpToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] {
+            aboutToolStripMenuItem,
+            openLogFolderToolStripMenuItem });
+        helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+        helpToolStripMenuItem.Size = new Size(55, 24);
+        helpToolStripMenuItem.Text = "Help";
+
+        // aboutToolStripMenuItem
+        aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+        aboutToolStripMenuItem.Size = new Size(200, 26);
+        aboutToolStripMenuItem.Text = "About";
+        aboutToolStripMenuItem.Click += aboutToolStripMenuItem_Click;
+
+        // openLogFolderToolStripMenuItem
+        openLogFolderToolStripMenuItem.Name = "openLogFolderToolStripMenuItem";
+        openLogFolderToolStripMenuItem.Size = new Size(200, 26);
+        openLogFolderToolStripMenuItem.Text = "Open Log Folder";
+        openLogFolderToolStripMenuItem.Click += openLogFolderToolStripMenuItem_Click;
         
         // statusStrip
         statusStrip.ImageScalingSize = new Size(20, 20);
@@ -314,4 +337,7 @@ partial class Form1
     private ToolStripMenuItem gpUpdateMenuItem;
     private ToolStripMenuItem pingMenuItem;
     private ToolStripMenuItem tracertMenuItem;
+    private ToolStripMenuItem helpToolStripMenuItem;
+    private ToolStripMenuItem aboutToolStripMenuItem;
+    private ToolStripMenuItem openLogFolderToolStripMenuItem;
 }

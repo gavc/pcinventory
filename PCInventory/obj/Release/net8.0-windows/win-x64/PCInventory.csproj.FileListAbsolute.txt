@@ -233,7 +233,6 @@ C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\createdump.ex
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\hostfxr.dll
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\hostpolicy.dll
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\mscordaccore.dll
-C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\mscordaccore_amd64_amd64_8.0.1325.6609.dll
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\mscordbi.dll
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\mscorrc.dll
 C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\msquic.dll
@@ -475,3 +474,4 @@ C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.p
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.genruntimeconfig.cache
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\ref\PCInventory.dll
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\win-x64\PCInventory.sourcelink.json
+C:\Temp\pcinventory\PCInventory\bin\Release\net8.0-windows\win-x64\mscordaccore_amd64_amd64_8.0.1725.26602.dll

@@ -1,14 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "uKDGF/ajs9M=",
+  "dgSpecHash": "oOIz3UMrnc8=",
   "success": true,
   "projectFilePath": "C:\\Temp\\pcinventory\\PCInventory\\PCInventory.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\gavco\\.nuget\\packages\\system.codedom\\8.0.0\\system.codedom.8.0.0.nupkg.sha512",
-    "C:\\Users\\gavco\\.nuget\\packages\\system.management\\8.0.0\\system.management.8.0.0.nupkg.sha512",
-    "C:\\Users\\gavco\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.13\\microsoft.netcore.app.runtime.win-x64.8.0.13.nupkg.sha512",
-    "C:\\Users\\gavco\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.13\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.13.nupkg.sha512",
-    "C:\\Users\\gavco\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.13\\microsoft.aspnetcore.app.runtime.win-x64.8.0.13.nupkg.sha512"
+    "C:\\Users\\gavco\\.nuget\\packages\\system.management\\8.0.0\\system.management.8.0.0.nupkg.sha512"
   ],
   "logs": []
 }

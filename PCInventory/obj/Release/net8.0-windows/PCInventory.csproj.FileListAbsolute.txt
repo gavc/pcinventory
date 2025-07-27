@@ -16,3 +16,4 @@ C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\refint\PCInventory.dl
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\PCInventory.pdb
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\PCInventory.genruntimeconfig.cache
 C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\ref\PCInventory.dll
+C:\Temp\pcinventory\PCInventory\obj\Release\net8.0-windows\PCInventory.sourcelink.json

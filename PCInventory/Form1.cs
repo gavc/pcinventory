@@ -14,6 +14,7 @@ public partial class Form1 : Form
     private PCHealthService? _healthService;
     private CancellationTokenSource? _cancellationTokenSource;
     private string _settingsFilePath;
+    private LoggingService _logger = new LoggingService();
 
     public Form1()
     {
@@ -22,6 +23,10 @@ public partial class Form1 : Form
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "PCInventory",
             "settings.json");
+        
+        // Clean up old logs on startup
+        _logger.CleanupOldLogs();
+        _logger.LogInfo("Application started");
     }
 
     private void Form1_Load(object sender, EventArgs e)
@@ -35,7 +40,36 @@ public partial class Form1 : Form
 
             // Load settings if available
             if (File.Exists(_settingsFilePath))
-                _settings = _fileService.LoadSettings(_settingsFilePath);
+            {
+                try
+                {
+                    _settings = _fileService.LoadSettings(_settingsFilePath);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    MessageBox.Show($"Access denied when loading settings from '{_settingsFilePath}'. Using default settings.", 
+                        "Settings Load Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _settings = new AppSettings();
+                }
+                catch (IOException ioEx)
+                {
+                    MessageBox.Show($"Error reading settings file:\n{ioEx.Message}\n\nUsing default settings.", 
+                        "Settings Load Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _settings = new AppSettings();
+                }
+                catch (InvalidOperationException invEx)
+                {
+                    MessageBox.Show($"Settings file is corrupted:\n{invEx.Message}\n\nUsing default settings.", 
+                        "Settings Corrupted", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _settings = new AppSettings();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Unexpected error loading settings:\n{ex.Message}\n\nUsing default settings.", 
+                        "Settings Load Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    _settings = new AppSettings();
+                }
+            }
 
             // Initialize health service with settings
             _healthService = new PCHealthService(_settings);
@@ -47,9 +81,24 @@ public partial class Form1 : Form
             // Setup initial DataGridView columns
             SetupDataGridViewColumns();
         }
+        catch (UnauthorizedAccessException)
+        {
+            MessageBox.Show("Access denied when initializing application. Please run as administrator or check permissions.", 
+                "Initialization Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            _settings = new AppSettings();
+            _healthService = new PCHealthService(_settings);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            MessageBox.Show("Could not create settings directory. Settings will not be saved.", 
+                "Directory Creation Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _settings = new AppSettings();
+            _healthService = new PCHealthService(_settings);
+        }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error loading settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Unexpected error during application startup:\n{ex.Message}\n\nThe application will continue with default settings.", 
+                "Startup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             _settings = new AppSettings();
             _healthService = new PCHealthService(_settings);
         }
@@ -103,6 +152,16 @@ public partial class Form1 : Form
         if (_settings.CheckPendingReboot)
         {
             dataGridView.Columns.Add("colPendingReboot", "Pending Reboot");
+        }
+        
+        if (_settings.CheckNetworkConnectionType)
+        {
+            dataGridView.Columns.Add("colNetworkConnectionType", "Network Connection Type");
+        }
+        
+        if (_settings.CheckWiFiInfo)
+        {
+            dataGridView.Columns.Add("colWiFiInfo", "WiFi Info");
         }
             
         // Add registry check columns
@@ -166,15 +225,30 @@ public partial class Form1 : Form
             {
                 tasks.Add(Task.Run(async () => 
                 {
-                    if (_healthService != null)
+                    try
                     {
-                        var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName);
+                        if (_healthService != null)
+                        {
+                            var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName);
+                            UpdatePCStatus(pcInfo);
+                            return pcInfo;
+                        }
+                        else
+                        {
+                            var pcInfo = new PCInfo { PCName = pcName, Status = "Error: Health service not initialized" };
+                            UpdatePCStatus(pcInfo);
+                            return pcInfo;
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        var pcInfo = new PCInfo { PCName = pcName, Status = "Cancelled" };
                         UpdatePCStatus(pcInfo);
                         return pcInfo;
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        var pcInfo = new PCInfo { PCName = pcName, Status = "Error: Health service not initialized" };
+                        var pcInfo = new PCInfo { PCName = pcName, Status = $"Task Error: {ex.Message}" };
                         UpdatePCStatus(pcInfo);
                         return pcInfo;
                     }
@@ -190,29 +264,26 @@ public partial class Form1 : Form
                 try
                 {
                     await completionTask;
-                    _pcInfoList = tasks.Select(t => t.Result).ToList();
+                    _pcInfoList = tasks.Where(t => t.IsCompletedSuccessfully).Select(t => t.Result).ToList();
                 }
                 catch (Exception)
                 {
                     // Some tasks failed, but we still want to process all completed ones
-                    _pcInfoList = tasks.Where(t => t.IsCompleted && !t.IsFaulted).Select(t => t.Result).ToList();
+                    _pcInfoList = tasks.Where(t => t.IsCompletedSuccessfully).Select(t => t.Result).ToList();
                     
-                    // Ensure all tasks get final status update
-                    foreach (var task in tasks)
+                    // Ensure all failed tasks get final status update
+                    foreach (var task in tasks.Where(t => t.IsFaulted))
                     {
-                        if (task.IsFaulted && task.Exception != null)
-                        {
-                            // Find the corresponding row and update status
-                            var pcName = _pcList[tasks.IndexOf(task)];
-                            UpdatePCStatus(new PCInfo { 
-                                PCName = pcName, 
-                                Status = "Error: Task failed" 
-                            });
-                        }
+                        var pcName = _pcList[tasks.IndexOf(task)];
+                        var exception = task.Exception?.GetBaseException();
+                        UpdatePCStatus(new PCInfo { 
+                            PCName = pcName, 
+                            Status = $"Task Failed: {exception?.Message ?? "Unknown error"}" 
+                        });
                     }
                 }
                 
-                toolStripStatusLabel.Text = "Scan completed";
+                toolStripStatusLabel.Text = $"Scan completed - {_pcInfoList.Count} of {_pcList.Count} PCs processed successfully";
                 exportToolStripMenuItem.Enabled = _pcInfoList.Count > 0;
             }
             catch (OperationCanceledException)
@@ -233,9 +304,15 @@ public partial class Form1 : Form
                 }
             }
         }
+        catch (OutOfMemoryException)
+        {
+            MessageBox.Show("Not enough memory to scan all PCs. Try scanning fewer PCs at once.", 
+                "Memory Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error during scanning: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Error during scanning: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}", 
+                "Scan Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -301,9 +378,30 @@ public partial class Form1 : Form
             toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
             btnScan.Enabled = _pcList.Count > 0;
         }
+        catch (FileNotFoundException)
+        {
+            MessageBox.Show($"The file '{openFileDialog.FileName}' was not found.", 
+                "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MessageBox.Show($"Access denied to file '{openFileDialog.FileName}'. Check file permissions.", 
+                "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (IOException ioEx)
+        {
+            MessageBox.Show($"Error reading file '{openFileDialog.FileName}':\n{ioEx.Message}", 
+                "File Read Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (InvalidOperationException invEx)
+        {
+            MessageBox.Show($"Invalid file content:\n{invEx.Message}", 
+                "Invalid File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error importing PC list: {ex.Message}", "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Unexpected error importing PC list:\n{ex.Message}", 
+                "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -329,12 +427,36 @@ public partial class Form1 : Form
                 MessageBoxButtons.YesNo, 
                 MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                System.Diagnostics.Process.Start("explorer.exe", saveFileDialog.FileName);
+                try
+                {
+                    System.Diagnostics.Process.Start("explorer.exe", saveFileDialog.FileName);
+                }
+                catch (Exception openEx)
+                {
+                    MessageBox.Show($"File exported successfully, but couldn't open it:\n{openEx.Message}", 
+                        "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MessageBox.Show($"Access denied to file '{saveFileDialog.FileName}'. Check file permissions and ensure the file is not open in another application.", 
+                "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (DirectoryNotFoundException)
+        {
+            MessageBox.Show($"Directory not found for file '{saveFileDialog.FileName}'. Please ensure the directory exists.", 
+                "Directory Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        catch (IOException ioEx)
+        {
+            MessageBox.Show($"Error writing to file '{saveFileDialog.FileName}':\n{ioEx.Message}\n\nEnsure the file is not open in another application.", 
+                "File Write Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error exporting results: {ex.Message}", "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show($"Unexpected error exporting results:\n{ex.Message}", 
+                "Export Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -376,9 +498,30 @@ public partial class Form1 : Form
                 
                 toolStripStatusLabel.Text = "Settings saved";
             }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show($"Access denied when saving settings to '{_settingsFilePath}'. Check permissions.", 
+                    "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                MessageBox.Show($"Directory not found for settings file '{_settingsFilePath}'. The application will try to create it next time.", 
+                    "Directory Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (IOException ioEx)
+            {
+                MessageBox.Show($"Error saving settings:\n{ioEx.Message}", 
+                    "Settings Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (InvalidOperationException invEx)
+            {
+                MessageBox.Show($"Error with settings data:\n{invEx.Message}", 
+                    "Settings Data Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving settings: {ex.Message}", "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Unexpected error saving settings:\n{ex.Message}", 
+                    "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
@@ -483,6 +626,16 @@ public partial class Form1 : Form
             {
                 dataGridView.Rows[rowIndex].Cells["colPendingReboot"].Value = pcInfo.PendingRebootStatus;
             }
+            
+            if (_settings.CheckNetworkConnectionType && dataGridView.Columns.Contains("colNetworkConnectionType"))
+            {
+                dataGridView.Rows[rowIndex].Cells["colNetworkConnectionType"].Value = pcInfo.NetworkConnectionType;
+            }
+            
+            if (_settings.CheckWiFiInfo && dataGridView.Columns.Contains("colWiFiInfo"))
+            {
+                dataGridView.Rows[rowIndex].Cells["colWiFiInfo"].Value = pcInfo.WiFiInfo;
+            }
                 
             // Add registry check values
             foreach (var regCheck in _settings.RegistryChecks.Where(rc => rc.Enabled))
@@ -500,7 +653,7 @@ public partial class Form1 : Form
         dataGridView.Refresh();
     }
 
-    private void DataGridView_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+    private void DataGridView_CellMouseDown(object? sender, DataGridViewCellMouseEventArgs e)
     {
         // Handle right-click to properly select the row before showing context menu
         if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
@@ -914,6 +1067,39 @@ public partial class Form1 : Form
         catch
         {
             return false;
+        }
+    }
+
+    // --- Help Menu Event Handlers ---
+    private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        MessageBox.Show(
+            "PC Inventory Tool\n\n" +
+            "Version 1.0\n" +
+            "© 2025 Gav Cormack\n\n" +
+            "App icon by Flaticon: https://www.flaticon.com/\n",
+            "About",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information
+        );
+    }
+
+    private void openLogFolderToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            var logDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PCInventory",
+                "Logs");
+            if (Directory.Exists(logDir))
+                System.Diagnostics.Process.Start("explorer.exe", logDir);
+            else
+                MessageBox.Show("Log folder does not exist.", "Open Log Folder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not open log folder:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

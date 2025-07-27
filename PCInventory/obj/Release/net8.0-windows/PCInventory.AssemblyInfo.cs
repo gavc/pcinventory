@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PCInventory")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2f582d7c0f2c0839dfbc17a7868d02eab1334ba9")]
 [assembly: System.Reflection.AssemblyProductAttribute("PCInventory")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PCInventory")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

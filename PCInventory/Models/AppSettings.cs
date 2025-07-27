@@ -15,6 +15,8 @@ namespace PCInventory.Models
         public bool CheckWindowsVersion { get; set; } = true;
         public bool CheckSerialNumber { get; set; } = true;
         public bool CheckPendingReboot { get; set; } = true;
+        public bool CheckNetworkConnectionType { get; set; } = true;
+        public bool CheckWiFiInfo { get; set; } = true;
 
         // Registry Check settings
         public List<RegistryCheckSetting> RegistryChecks { get; set; } = new List<RegistryCheckSetting>();
