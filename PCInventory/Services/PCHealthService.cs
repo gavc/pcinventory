@@ -54,7 +54,11 @@ namespace PCInventory.Services
                                 var systemInfo = GetSystemInformationBatch(pcName);
                                 if (_settings.CheckMake) pcInfo.Make = systemInfo.Make;
                                 if (_settings.CheckModel) pcInfo.Model = systemInfo.Model;
-                                if (_settings.CheckTotalRAM) pcInfo.TotalRAM = systemInfo.TotalRAM;
+                                if (_settings.CheckTotalRAM) 
+                                {
+                                    pcInfo.TotalRAM = systemInfo.TotalRAM;
+                                    pcInfo.TotalRAMBytes = systemInfo.TotalRAMBytes;
+                                }
                                 if (_settings.CheckLoggedOnUser) pcInfo.LoggedOnUser = systemInfo.LoggedOnUser;
                             }
                             
@@ -62,8 +66,16 @@ namespace PCInventory.Services
                             if (_settings.CheckHDDSize || _settings.CheckFreeHDDSpace)
                             {
                                 var storageInfo = GetStorageInformationBatch(pcName);
-                                if (_settings.CheckHDDSize) pcInfo.HDDSize = storageInfo.HDDSize;
-                                if (_settings.CheckFreeHDDSpace) pcInfo.FreeHDDSpace = storageInfo.FreeSpace;
+                                if (_settings.CheckHDDSize) 
+                                {
+                                    pcInfo.HDDSize = storageInfo.HDDSize;
+                                    pcInfo.HDDSizeBytes = storageInfo.HDDSizeBytes;
+                                }
+                                if (_settings.CheckFreeHDDSpace) 
+                                {
+                                    pcInfo.FreeHDDSpace = storageInfo.FreeSpace;
+                                    pcInfo.FreeHDDSpaceBytes = storageInfo.FreeSpaceBytes;
+                                }
                             }
                             
                             // Batch #3: Network Information (IP, MAC, connection type)
@@ -602,7 +614,7 @@ namespace PCInventory.Services
                 order++;
                 bytes /= 1024;
             }
-            // Round to whole numbers for better sorting
+            // Round to whole numbers for better display
             return $"{Math.Round(bytes)} {sizes[order]}";
         }
 
@@ -983,11 +995,13 @@ namespace PCInventory.Services
                 using var collection = searcher.Get();
                 foreach (var obj in collection)
                 {
+                    var totalRAMBytes = Convert.ToDouble(obj["TotalPhysicalMemory"] ?? 0);
                     return new Models.SystemInformation
                     {
                         Make = obj["Manufacturer"]?.ToString() ?? "N/A",
                         Model = obj["Model"]?.ToString() ?? "N/A",
-                        TotalRAM = FormatBytes(Convert.ToDouble(obj["TotalPhysicalMemory"] ?? 0)),
+                        TotalRAM = FormatBytes(totalRAMBytes),
+                        TotalRAMBytes = totalRAMBytes,
                         LoggedOnUser = obj["UserName"]?.ToString() ?? "N/A"
                     };
                 }
@@ -1000,6 +1014,7 @@ namespace PCInventory.Services
                     Make = "Access Denied", 
                     Model = "Access Denied", 
                     TotalRAM = "Access Denied",
+                    TotalRAMBytes = -1,
                     LoggedOnUser = "Access Denied"
                 };
             }
@@ -1011,6 +1026,7 @@ namespace PCInventory.Services
                     Make = errorMsg, 
                     Model = errorMsg, 
                     TotalRAM = errorMsg,
+                    TotalRAMBytes = -1,
                     LoggedOnUser = errorMsg
                 };
             }
@@ -1021,6 +1037,7 @@ namespace PCInventory.Services
                     Make = "Timeout", 
                     Model = "Timeout", 
                     TotalRAM = "Timeout",
+                    TotalRAMBytes = -1,
                     LoggedOnUser = "Timeout"
                 };
             }
@@ -1031,6 +1048,7 @@ namespace PCInventory.Services
                     Make = $"Error: {ex.Message}", 
                     Model = $"Error: {ex.Message}", 
                     TotalRAM = $"Error: {ex.Message}",
+                    TotalRAMBytes = -1,
                     LoggedOnUser = $"Error: {ex.Message}"
                 };
             }
@@ -1045,20 +1063,26 @@ namespace PCInventory.Services
                 using var collection = searcher.Get();
                 foreach (var obj in collection)
                 {
+                    var sizeBytes = Convert.ToDouble(obj["Size"] ?? 0);
+                    var freeSpaceBytes = Convert.ToDouble(obj["FreeSpace"] ?? 0);
                     return new Models.StorageInformation
                     {
-                        HDDSize = FormatBytes(Convert.ToDouble(obj["Size"] ?? 0)),
-                        FreeSpace = FormatBytes(Convert.ToDouble(obj["FreeSpace"] ?? 0))
+                        HDDSize = FormatBytes(sizeBytes),
+                        HDDSizeBytes = sizeBytes,
+                        FreeSpace = FormatBytes(freeSpaceBytes),
+                        FreeSpaceBytes = freeSpaceBytes
                     };
                 }
-                return new Models.StorageInformation { HDDSize = "N/A", FreeSpace = "N/A" };
+                return new Models.StorageInformation { HDDSize = "N/A", FreeSpace = "N/A", HDDSizeBytes = -1, FreeSpaceBytes = -1 };
             }
             catch (UnauthorizedAccessException)
             {
                 return new Models.StorageInformation
                 {
                     HDDSize = "Access Denied",
-                    FreeSpace = "Access Denied"
+                    FreeSpace = "Access Denied",
+                    HDDSizeBytes = -1,
+                    FreeSpaceBytes = -1
                 };
             }
             catch (System.Management.ManagementException mgmtEx)
@@ -1067,7 +1091,9 @@ namespace PCInventory.Services
                 return new Models.StorageInformation
                 {
                     HDDSize = errorMsg,
-                    FreeSpace = errorMsg
+                    FreeSpace = errorMsg,
+                    HDDSizeBytes = -1,
+                    FreeSpaceBytes = -1
                 };
             }
             catch (TimeoutException)
@@ -1075,7 +1101,9 @@ namespace PCInventory.Services
                 return new Models.StorageInformation
                 {
                     HDDSize = "Timeout",
-                    FreeSpace = "Timeout"
+                    FreeSpace = "Timeout",
+                    HDDSizeBytes = -1,
+                    FreeSpaceBytes = -1
                 };
             }
             catch (Exception ex)
@@ -1083,7 +1111,9 @@ namespace PCInventory.Services
                 return new Models.StorageInformation
                 {
                     HDDSize = $"Error: {ex.Message}",
-                    FreeSpace = $"Error: {ex.Message}"
+                    FreeSpace = $"Error: {ex.Message}",
+                    HDDSizeBytes = -1,
+                    FreeSpaceBytes = -1
                 };
             }
         }

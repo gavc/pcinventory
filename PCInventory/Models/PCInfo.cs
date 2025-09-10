@@ -20,6 +20,11 @@ namespace PCInventory.Models
         public string WiFiInfo { get; set; } = string.Empty;
         public Dictionary<string, string> CustomRegistryValues { get; set; } = new Dictionary<string, string>();
 
+        // Raw values for proper sorting (in bytes)
+        public double HDDSizeBytes { get; set; } = 0;
+        public double FreeHDDSpaceBytes { get; set; } = 0;
+        public double TotalRAMBytes { get; set; } = 0;
+
         // Status for UI updates
         public string Status { get; set; } = "Not Started";
     }

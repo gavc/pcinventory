@@ -77,6 +77,7 @@ public partial class Form1 : Form
             // Configure DataGridView context menu
             dataGridView.ContextMenuStrip = gridContextMenu;
             dataGridView.CellMouseDown += DataGridView_CellMouseDown;
+            dataGridView.CellFormatting += DataGridView_CellFormatting;
             
             // Setup initial DataGridView columns
             SetupDataGridViewColumns();
@@ -587,13 +588,13 @@ public partial class Form1 : Form
         {
             // Add data for all enabled columns
             if (_settings.CheckHDDSize && dataGridView.Columns.Contains("colHDDSize"))
-                dataGridView.Rows[rowIndex].Cells["colHDDSize"].Value = pcInfo.HDDSize;
+                dataGridView.Rows[rowIndex].Cells["colHDDSize"].Value = pcInfo.HDDSizeBytes;
                 
             if (_settings.CheckFreeHDDSpace && dataGridView.Columns.Contains("colFreeHDDSpace"))
-                dataGridView.Rows[rowIndex].Cells["colFreeHDDSpace"].Value = pcInfo.FreeHDDSpace;
+                dataGridView.Rows[rowIndex].Cells["colFreeHDDSpace"].Value = pcInfo.FreeHDDSpaceBytes;
                 
             if (_settings.CheckTotalRAM && dataGridView.Columns.Contains("colTotalRAM"))
-                dataGridView.Rows[rowIndex].Cells["colTotalRAM"].Value = pcInfo.TotalRAM;
+                dataGridView.Rows[rowIndex].Cells["colTotalRAM"].Value = pcInfo.TotalRAMBytes;
                 
             if (_settings.CheckIPAddress && dataGridView.Columns.Contains("colIPAddress"))
                 dataGridView.Rows[rowIndex].Cells["colIPAddress"].Value = pcInfo.IPAddress;
@@ -1101,5 +1102,52 @@ public partial class Form1 : Form
         {
             MessageBox.Show($"Could not open log folder:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void DataGridView_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
+    {
+        try
+        {
+            // Format byte values for storage and RAM columns
+            if ((e.ColumnIndex >= 0 && e.ColumnIndex < dataGridView.Columns.Count) &&
+                (dataGridView.Columns[e.ColumnIndex].Name == "colHDDSize" ||
+                 dataGridView.Columns[e.ColumnIndex].Name == "colFreeHDDSpace" ||
+                 dataGridView.Columns[e.ColumnIndex].Name == "colTotalRAM"))
+            {
+                if (e.Value is double bytes)
+                {
+                    if (bytes < 0)
+                    {
+                        // Negative values represent errors
+                        e.Value = "Error";
+                    }
+                    else if (bytes == 0)
+                    {
+                        e.Value = "N/A";
+                    }
+                    else
+                    {
+                        e.Value = FormatBytesForDisplay(bytes);
+                    }
+                    e.FormattingApplied = true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in DataGridView cell formatting", ex);
+        }
+    }
+
+    private string FormatBytesForDisplay(double bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        int order = 0;
+        while (bytes >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            bytes /= 1024;
+        }
+        return $"{Math.Round(bytes)} {sizes[order]}";
     }
 }

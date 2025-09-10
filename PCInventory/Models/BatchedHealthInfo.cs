@@ -6,12 +6,15 @@ namespace PCInventory.Models
         public string Model { get; set; } = string.Empty;
         public string TotalRAM { get; set; } = string.Empty;
         public string LoggedOnUser { get; set; } = string.Empty;
+        public double TotalRAMBytes { get; set; } = 0;
     }
 
     public class StorageInformation
     {
         public string HDDSize { get; set; } = string.Empty;
         public string FreeSpace { get; set; } = string.Empty;
+        public double HDDSizeBytes { get; set; } = 0;
+        public double FreeSpaceBytes { get; set; } = 0;
     }
 
     public class NetworkInformation
