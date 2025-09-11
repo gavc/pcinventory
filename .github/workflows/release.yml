@@ -8,6 +8,9 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: Create Release
@@ -29,7 +32,7 @@ jobs:
       run: dotnet build PCInventory/PCInventory.csproj --configuration Release --no-restore
       
     - name: Publish Windows x64
-      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --runtime win-x64 --self-contained false --output ./release/win-x64
+      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --runtime win-x64 --self-contained true --output ./release/win-x64
       
     - name: Create zip package
       run: |
@@ -42,13 +45,10 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         
     - name: Create Release
-      uses: actions/create-release@v1
-      id: create_release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.ref }}
-        release_name: PC Inventory v${{ steps.version.outputs.VERSION }}
+        name: PC Inventory v${{ steps.version.outputs.VERSION }}
         body: |
           ## PC Inventory v${{ steps.version.outputs.VERSION }}
           
@@ -60,28 +60,20 @@ jobs:
           - CSV export functionality
           
           ### 📦 Downloads
-          - **Windows x64**: PCInventory-win-x64.zip
+          - **Windows x64**: PCInventory-win-x64.zip (Self-contained - no .NET installation required)
           
           ### 📋 Requirements
           - Windows 10/11 or Windows Server 2016+ (x64)
-          - .NET 8.0 Runtime
+          - No additional dependencies required
           - Network access to target computers
           
           ### 🔧 Installation
-          1. Download the appropriate package for your system
+          1. Download the PCInventory-win-x64.zip package
           2. Extract the ZIP file
           3. Run PCInventory.exe as administrator (recommended)
           
           For detailed instructions, see the [README](https://github.com/gavc/pcinventory/blob/main/README.md).
+        files: |
+          PCInventory-win-x64.zip
         draft: false
         prerelease: false
-        
-    - name: Upload Windows x64 Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./PCInventory-win-x64.zip
-        asset_name: PCInventory-win-x64.zip
-        asset_content_type: application/zip

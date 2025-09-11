@@ -1,0 +1,77 @@
+name: Build PC Inventory
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+          
+    - name: Restore dependencies
+      run: dotnet restore PCInventory/PCInventory.csproj
+      
+    - name: Build application
+      run: dotnet build PCInventory/PCInventory.csproj --configuration Release --no-restore
+      
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
+      continue-on-error: true
+      
+    - name: Publish application
+      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --output ./publish --no-build
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: PCInventory-${{ github.run_number }}
+        path: ./publish/
+        retention-days: 30
+
+  code-analysis:
+    name: Code Analysis
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore PCInventory/PCInventory.csproj
+      
+    - name: Run code analysis
+      run: dotnet build PCInventory/PCInventory.csproj --configuration Release --verbosity normal /p:TreatWarningsAsErrors=false
+      
+    - name: Run security scan
+      run: |
+        dotnet list PCInventory/PCInventory.csproj package --vulnerable --include-transitive
+      continue-on-error: true
