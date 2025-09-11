@@ -216,7 +216,7 @@ For support, bug reports, or feature requests, please:
 
 ## 🔄 Version History
 
-### Current Version
+### Version 0.1.0 (Initial Release)
 - Enhanced numeric sorting for storage and memory values
 - Improved error handling and logging
 - Custom registry check functionality

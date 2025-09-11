@@ -1076,7 +1076,7 @@ public partial class Form1 : Form
     {
         MessageBox.Show(
             "PC Inventory Tool\n\n" +
-            "Version 1.0\n" +
+            "Version 0.1.0\n" +
             "© 2025 Gav Cormack\n\n" +
             "App icon by Flaticon: https://www.flaticon.com/\n",
             "About",

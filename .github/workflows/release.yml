@@ -1,0 +1,87 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Restore dependencies
+      run: dotnet restore PCInventory/PCInventory.csproj
+      
+    - name: Build application
+      run: dotnet build PCInventory/PCInventory.csproj --configuration Release --no-restore
+      
+    - name: Publish Windows x64
+      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --runtime win-x64 --self-contained false --output ./release/win-x64
+      
+    - name: Create zip package
+      run: |
+        Compress-Archive -Path "./release/win-x64/*" -DestinationPath "./PCInventory-win-x64.zip"
+      
+    - name: Get version from tag
+      id: version
+      run: |
+        $version = $env:GITHUB_REF -replace 'refs/tags/v', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        
+    - name: Create Release
+      uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: PC Inventory v${{ steps.version.outputs.VERSION }}
+        body: |
+          ## PC Inventory v${{ steps.version.outputs.VERSION }}
+          
+          ### 🚀 Features
+          - System information collection from multiple PCs
+          - Hardware and software inventory
+          - Network information gathering
+          - Custom registry value monitoring
+          - CSV export functionality
+          
+          ### 📦 Downloads
+          - **Windows x64**: PCInventory-win-x64.zip
+          
+          ### 📋 Requirements
+          - Windows 10/11 or Windows Server 2016+ (x64)
+          - .NET 8.0 Runtime
+          - Network access to target computers
+          
+          ### 🔧 Installation
+          1. Download the appropriate package for your system
+          2. Extract the ZIP file
+          3. Run PCInventory.exe as administrator (recommended)
+          
+          For detailed instructions, see the [README](https://github.com/gavc/pcinventory/blob/main/README.md).
+        draft: false
+        prerelease: false
+        
+    - name: Upload Windows x64 Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./PCInventory-win-x64.zip
+        asset_name: PCInventory-win-x64.zip
+        asset_content_type: application/zip
