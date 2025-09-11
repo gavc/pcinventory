@@ -32,7 +32,14 @@ jobs:
       run: dotnet build PCInventory/PCInventory.csproj --configuration Release --no-restore
       
     - name: Publish Windows x64
-      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --runtime win-x64 --self-contained true --output ./release/win-x64
+      run: dotnet publish PCInventory/PCInventory.csproj --configuration Release --runtime win-x64 --self-contained true --output ./release/win-x64 -p:PublishSingleFile=false -p:PublishReadyToRun=false
+      
+    - name: List published files
+      run: |
+        Write-Host "Contents of release folder:"
+        Get-ChildItem -Path "./release/win-x64" -Recurse | Format-Table Name, Length, LastWriteTime
+        Write-Host "Total files: $((Get-ChildItem -Path './release/win-x64' -Recurse -File).Count)"
+        Write-Host "Total size: $([math]::Round(((Get-ChildItem -Path './release/win-x64' -Recurse -File | Measure-Object -Property Length -Sum).Sum / 1MB), 2)) MB"
       
     - name: Create zip package
       run: |
