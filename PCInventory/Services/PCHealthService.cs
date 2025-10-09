@@ -34,7 +34,7 @@ namespace PCInventory.Services
                     {
                         // Basic connectivity check with timeout
                         using Ping ping = new Ping();
-                        PingReply reply = ping.Send(pcName, 5000); // 5 second timeout
+                        PingReply reply = ping.Send(pcName, 2000); // 2 second timeout - faster detection of offline PCs
                         if (reply.Status != IPStatus.Success)
                         {
                             pcInfo.Status = GetDetailedPingStatus(reply.Status);
@@ -45,13 +45,27 @@ namespace PCInventory.Services
                         _logger.LogInfo($"Ping successful: {reply.RoundtripTime}ms", pcName);
                         pcInfo.Status = "Gathering data...";
                         
-                        // Use batched WMI queries for better performance
+                        // Create single WMI connection scope for all queries (Connection Pooling)
+                        var connectionOptions = new ConnectionOptions
+                        {
+                            Timeout = TimeSpan.FromSeconds(30),
+                            EnablePrivileges = true,
+                            Authentication = AuthenticationLevel.PacketPrivacy
+                        };
+                        
+                        var wmiScope = new ManagementScope($"\\\\{pcName}\\root\\cimv2", connectionOptions);
+                        
+                        // Use batched WMI queries with shared connection for better performance
                         try
                         {
+                            // Connect once and reuse for all queries
+                            wmiScope.Connect();
+                            _logger.LogInfo("WMI connection established", pcName);
+                            
                             // Batch #1: System Information (Make, Model, TotalRAM, LoggedOnUser)
                             if (_settings.CheckMake || _settings.CheckModel || _settings.CheckTotalRAM || _settings.CheckLoggedOnUser)
                             {
-                                var systemInfo = GetSystemInformationBatch(pcName);
+                                var systemInfo = GetSystemInformationBatch(wmiScope);
                                 if (_settings.CheckMake) pcInfo.Make = systemInfo.Make;
                                 if (_settings.CheckModel) pcInfo.Model = systemInfo.Model;
                                 if (_settings.CheckTotalRAM) 
@@ -65,7 +79,7 @@ namespace PCInventory.Services
                             // Batch #2: Storage Information (HDD size, free space)
                             if (_settings.CheckHDDSize || _settings.CheckFreeHDDSpace)
                             {
-                                var storageInfo = GetStorageInformationBatch(pcName);
+                                var storageInfo = GetStorageInformationBatch(wmiScope);
                                 if (_settings.CheckHDDSize) 
                                 {
                                     pcInfo.HDDSize = storageInfo.HDDSize;
@@ -81,7 +95,7 @@ namespace PCInventory.Services
                             // Batch #3: Network Information (IP, MAC, connection type)
                             if (_settings.CheckIPAddress || _settings.CheckMACAddress || _settings.CheckNetworkConnectionType)
                             {
-                                var networkInfo = GetNetworkInformationBatch(pcName);
+                                var networkInfo = GetNetworkInformationBatch(wmiScope, pcName);
                                 if (_settings.CheckIPAddress) pcInfo.IPAddress = networkInfo.IPAddress;
                                 if (_settings.CheckMACAddress) pcInfo.MACAddress = networkInfo.MACAddress;
                                 if (_settings.CheckNetworkConnectionType) pcInfo.NetworkConnectionType = networkInfo.ConnectionType;
@@ -90,7 +104,7 @@ namespace PCInventory.Services
                             // Batch #4: BIOS/Hardware Information
                             if (_settings.CheckBIOSVersion || _settings.CheckSerialNumber)
                             {
-                                var biosInfo = GetBIOSInformationBatch(pcName);
+                                var biosInfo = GetBIOSInformationBatch(wmiScope);
                                 if (_settings.CheckBIOSVersion) pcInfo.BIOSVersion = biosInfo.BIOSVersion;
                                 if (_settings.CheckSerialNumber) pcInfo.SerialNumber = biosInfo.SerialNumber;
                             }
@@ -98,7 +112,7 @@ namespace PCInventory.Services
                             // Batch #5: Operating System Information
                             if (_settings.CheckWindowsVersion || _settings.CheckLastRebootTime)
                             {
-                                var osInfo = GetOperatingSystemInformationBatch(pcName);
+                                var osInfo = GetOperatingSystemInformationBatch(wmiScope);
                                 if (_settings.CheckWindowsVersion) pcInfo.WindowsVersion = osInfo.WindowsVersion;
                                 if (_settings.CheckLastRebootTime) pcInfo.LastRebootTime = osInfo.LastRebootTime;
                             }
@@ -732,13 +746,13 @@ namespace PCInventory.Services
             }
         }
 
-        // Batched WMI Query Methods for Better Performance
-        private Models.SystemInformation GetSystemInformationBatch(string pcName)
+        // Batched WMI Query Methods for Better Performance (with Connection Pooling)
+        private Models.SystemInformation GetSystemInformationBatch(ManagementScope scope)
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher($"\\\\{pcName}\\root\\cimv2", 
-                    "SELECT Manufacturer, Model, TotalPhysicalMemory, UserName FROM Win32_ComputerSystem");
+                using var searcher = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Manufacturer, Model, TotalPhysicalMemory, UserName FROM Win32_ComputerSystem"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();
@@ -801,12 +815,14 @@ namespace PCInventory.Services
                     LoggedOnUser = $"Error: {ex.Message}"
                 };
             }
-        }        private Models.StorageInformation GetStorageInformationBatch(string pcName)
+        }
+        
+        private Models.StorageInformation GetStorageInformationBatch(ManagementScope scope)
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher($"\\\\{pcName}\\root\\cimv2", 
-                    "SELECT Size, FreeSpace FROM Win32_LogicalDisk WHERE DeviceID = 'C:'");
+                using var searcher = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Size, FreeSpace FROM Win32_LogicalDisk WHERE DeviceID = 'C:'"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();
@@ -867,15 +883,15 @@ namespace PCInventory.Services
             }
         }
 
-        private Models.NetworkInformation GetNetworkInformationBatch(string pcName)
+        private Models.NetworkInformation GetNetworkInformationBatch(ManagementScope scope, string pcName)
         {
             try
             {
                 var result = new Models.NetworkInformation();
                 
                 // Get IP and MAC from network adapter configuration
-                using var searcher = new ManagementObjectSearcher($"\\\\{pcName}\\root\\cimv2", 
-                    "SELECT IPAddress, MACAddress, Description FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True");
+                using var searcher = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT IPAddress, MACAddress, Description FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = True"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();
@@ -953,12 +969,12 @@ namespace PCInventory.Services
             }
         }
 
-        private Models.BIOSInformation GetBIOSInformationBatch(string pcName)
+        private Models.BIOSInformation GetBIOSInformationBatch(ManagementScope scope)
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher($"\\\\{pcName}\\root\\cimv2", 
-                    "SELECT SMBIOSBIOSVersion, SerialNumber FROM Win32_BIOS");
+                using var searcher = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT SMBIOSBIOSVersion, SerialNumber FROM Win32_BIOS"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();
@@ -1007,12 +1023,12 @@ namespace PCInventory.Services
             }
         }
 
-        private Models.OperatingSystemInformation GetOperatingSystemInformationBatch(string pcName)
+        private Models.OperatingSystemInformation GetOperatingSystemInformationBatch(ManagementScope scope)
         {
             try
             {
-                using var searcher = new ManagementObjectSearcher($"\\\\{pcName}\\root\\cimv2", 
-                    "SELECT Caption, Version, LastBootUpTime FROM Win32_OperatingSystem");
+                using var searcher = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Caption, Version, LastBootUpTime FROM Win32_OperatingSystem"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();

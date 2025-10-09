@@ -334,8 +334,8 @@ connections.Add($"{connectionName} ({connectionType})");
 
 ### Immediate (This Sprint):
 1. ✅ ~~**DELETE unused legacy methods**~~ (GetIPAddress, GetMACAddress, etc.) - **COMPLETED**
-2. 🔥 **Implement ManagementScope connection pooling**
-3. ⚡ **Reduce ping timeout from 5s to 2s**
+2. ✅ ~~**Implement ManagementScope connection pooling**~~ - **COMPLETED** 🔥
+3. ✅ ~~**Reduce ping timeout from 5s to 2s**~~ - **COMPLETED** ⚡
 
 ### Short-term (Next Sprint):
 4. 🎯 **Optimize WMI queries** (remove unused fields)
