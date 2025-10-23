@@ -216,7 +216,7 @@ For support, bug reports, or feature requests, please:
 
 ## 🔄 Version History
 
-### Version 0.2.0 (Performance Release - October 9, 2025)
+### Version 0.2.1 (Performance Release - October 23, 2025)
 - **Major performance improvements: 30-40% faster PC scanning**
 - Connection pooling implementation (single WMI connection per PC)
 - Reduced ping timeout from 5s to 2s (60% faster offline detection)
