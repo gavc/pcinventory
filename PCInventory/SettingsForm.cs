@@ -14,7 +14,8 @@ namespace PCInventory
             _registryChecks = new List<RegistryCheckSetting>();
 
             // Make a deep copy of registry checks to avoid modifying original until save
-            foreach (var check in _settings.RegistryChecks)
+            var sourceChecks = _settings.RegistryChecks ?? new List<RegistryCheckSetting>();
+            foreach (var check in sourceChecks)
             {
                 _registryChecks.Add(new RegistryCheckSetting
                 {
@@ -187,6 +188,7 @@ namespace PCInventory
             _settings.CheckWiFiInfo = chkWiFiInfo.Checked;
             
             // Save registry check settings
+            _settings.RegistryChecks ??= new List<RegistryCheckSetting>();
             _settings.RegistryChecks.Clear();
             foreach (var check in _registryChecks)
             {

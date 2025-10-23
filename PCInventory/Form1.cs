@@ -463,20 +463,22 @@ public partial class Form1 : Form
 
     private void settingsToolStripMenuItem_Click(object sender, EventArgs e)
     {
-        var settingsForm = new SettingsForm(_settings);
-        if (settingsForm.ShowDialog() == DialogResult.OK)
+        using var settingsForm = new SettingsForm(_settings);
+        if (settingsForm.ShowDialog(this) == DialogResult.OK)
         {
             try
             {
                 // Save settings
                 _fileService.SaveSettings(_settings, _settingsFilePath);
-                
+
+                _logger.LogInfo("Settings saved successfully");
+
                 // Update health service with new settings
                 _healthService = new PCHealthService(_settings);
-                
+
                 // Update grid view columns based on new settings
                 SetupDataGridViewColumns();
-                
+
                 // Reload data with new columns if we have any
                 if (_pcInfoList.Count > 0)
                 {
@@ -499,29 +501,34 @@ public partial class Form1 : Form
                 
                 toolStripStatusLabel.Text = "Settings saved";
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show($"Access denied when saving settings to '{_settingsFilePath}'. Check permissions.", 
+                _logger.LogError("Access denied while saving settings", ex);
+                MessageBox.Show("Access denied when saving settings. Try running as administrator or adjust file permissions.",
                     "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch (DirectoryNotFoundException)
+            catch (DirectoryNotFoundException ex)
             {
-                MessageBox.Show($"Directory not found for settings file '{_settingsFilePath}'. The application will try to create it next time.", 
+                _logger.LogError("Settings directory not found", ex);
+                MessageBox.Show("Settings folder could not be created. Please check your profile permissions.",
                     "Directory Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-            catch (IOException ioEx)
+            catch (IOException ex)
             {
-                MessageBox.Show($"Error saving settings:\n{ioEx.Message}", 
+                _logger.LogError("IO error while saving settings", ex);
+                MessageBox.Show($"Could not save settings (file may be in use):\n{ex.Message}",
                     "Settings Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            catch (InvalidOperationException invEx)
+            catch (InvalidOperationException ex)
             {
-                MessageBox.Show($"Error with settings data:\n{invEx.Message}", 
+                _logger.LogError("Invalid settings data encountered", ex);
+                MessageBox.Show($"Error with settings data:\n{ex.Message}",
                     "Settings Data Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Unexpected error saving settings:\n{ex.Message}", 
+                _logger.LogError("Unexpected error while saving settings", ex);
+                MessageBox.Show($"Unexpected error saving settings:\n{ex.Message}",
                     "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

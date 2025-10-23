@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using PCInventory.Models;
 
 namespace PCInventory.Services
@@ -208,56 +210,115 @@ namespace PCInventory.Services
         {
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
-            
+
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new ArgumentException("File path cannot be null or empty.", nameof(filePath));
 
+            string fullPath = Path.GetFullPath(filePath);
+            string? directory = Path.GetDirectoryName(fullPath);
+
             try
             {
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(filePath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }
 
-                var json = System.Text.Json.JsonSerializer.Serialize(settings, new System.Text.Json.JsonSerializerOptions
+                string json;
+                try
                 {
-                    WriteIndented = true
-                });
-                
-                // Write to temp file first, then move to prevent corruption
-                var tempFile = filePath + ".tmp";
-                File.WriteAllText(tempFile, json, Encoding.UTF8);
-                
-                // Backup existing file if it exists
-                if (File.Exists(filePath))
-                {
-                    var backupFile = filePath + ".backup";
-                    File.Copy(filePath, backupFile, true);
+                    json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
                 }
-                
-                File.Move(tempFile, filePath);
+                catch (JsonException jsonEx)
+                {
+                    throw new InvalidOperationException($"Error serializing settings: {jsonEx.Message}", jsonEx);
+                }
+
+                string fileName = Path.GetFileName(fullPath);
+                string backupPath = Path.Combine(directory ?? string.Empty, $".{fileName}.bak");
+
+                for (int attempt = 1; attempt <= 3; attempt++)
+                {
+                    string tempPath = Path.Combine(directory ?? string.Empty, $".{fileName}.{Guid.NewGuid():N}.tmp");
+                    try
+                    {
+                        File.WriteAllText(tempPath, json, Encoding.UTF8);
+
+                        if (File.Exists(fullPath))
+                        {
+                            File.Replace(tempPath, fullPath, backupPath, ignoreMetadataErrors: true);
+                            try
+                            {
+                                if (File.Exists(backupPath))
+                                {
+                                    File.Delete(backupPath);
+                                }
+                            }
+                            catch
+                            {
+                                // Best-effort cleanup of backup file
+                            }
+                        }
+                        else
+                        {
+                            File.Move(tempPath, fullPath);
+                        }
+
+                        return;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        throw new UnauthorizedAccessException($"Access denied when trying to save settings to: {fullPath}");
+                    }
+                    catch (DirectoryNotFoundException)
+                    {
+                        throw new DirectoryNotFoundException($"Directory not found for settings file: {fullPath}");
+                    }
+                    catch (IOException) when (attempt < 3)
+                    {
+                        Thread.Sleep(150);
+                        continue;
+                    }
+                    catch (IOException ioEx)
+                    {
+                        throw new IOException($"IO error when saving settings to: {fullPath}. {ioEx.Message}", ioEx);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (File.Exists(tempPath))
+                            {
+                                File.Delete(tempPath);
+                            }
+                        }
+                        catch
+                        {
+                            // Swallow cleanup exceptions
+                        }
+                    }
+                }
+
+                throw new IOException($"Failed to save settings to: {fullPath}. File may be locked.");
             }
             catch (UnauthorizedAccessException)
             {
-                throw new UnauthorizedAccessException($"Access denied when trying to save settings to: {filePath}");
+                throw;
             }
             catch (DirectoryNotFoundException)
             {
-                throw new DirectoryNotFoundException($"Directory not found for settings file: {filePath}");
+                throw;
             }
-            catch (IOException ioEx)
+            catch (IOException)
             {
-                throw new IOException($"IO error when saving settings to: {filePath}. {ioEx.Message}", ioEx);
+                throw;
             }
-            catch (System.Text.Json.JsonException jsonEx)
+            catch (Exception ex) when (!(ex is ArgumentNullException || ex is ArgumentException || ex is InvalidOperationException))
             {
-                throw new InvalidOperationException($"Error serializing settings: {jsonEx.Message}", jsonEx);
-            }
-            catch (Exception ex) when (!(ex is ArgumentNullException || ex is ArgumentException))
-            {
-                throw new Exception($"Unexpected error saving settings to: {filePath}. {ex.Message}", ex);
+                throw new Exception($"Unexpected error saving settings to: {fullPath}. {ex.Message}", ex);
             }
         }
 
