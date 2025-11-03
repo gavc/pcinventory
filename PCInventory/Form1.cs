@@ -150,6 +150,9 @@ public partial class Form1 : Form
         if (_settings.CheckSerialNumber)
             dataGridView.Columns.Add("colSerialNumber", "Serial Number");
 
+        if (_settings.CheckInstallDate)
+            dataGridView.Columns.Add("colInstallDate", "OS Install Date");
+
         if (_settings.CheckPendingReboot)
         {
             dataGridView.Columns.Add("colPendingReboot", "Pending Reboot");
@@ -330,6 +333,7 @@ public partial class Form1 : Form
             SetUIForScanning(false);
         }
     }
+    
 
     private void btnScan_Click(object sender, EventArgs e)
     {
@@ -466,20 +470,25 @@ public partial class Form1 : Form
         using var settingsForm = new SettingsForm(_settings);
         if (settingsForm.ShowDialog(this) == DialogResult.OK)
         {
+            // Best-effort: try to save settings but do not show modal error dialogs on failure.
+            bool saved = _fileService.SaveSettings(_settings, _settingsFilePath);
+            if (saved)
+            {
+                _logger.LogInfo("Settings saved successfully");
+                toolStripStatusLabel.Text = "Settings saved";
+            }
+            else
+            {
+                _logger.LogWarning("Settings could not be saved to disk; using in-memory settings for this session.");
+                toolStripStatusLabel.Text = "Settings not saved";
+            }
+
+            // Always apply the settings to the running session
             try
             {
-                // Save settings
-                _fileService.SaveSettings(_settings, _settingsFilePath);
-
-                _logger.LogInfo("Settings saved successfully");
-
-                // Update health service with new settings
                 _healthService = new PCHealthService(_settings);
-
-                // Update grid view columns based on new settings
                 SetupDataGridViewColumns();
 
-                // Reload data with new columns if we have any
                 if (_pcInfoList.Count > 0)
                 {
                     dataGridView.Rows.Clear();
@@ -498,38 +507,11 @@ public partial class Form1 : Form
                         dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
                     }
                 }
-                
-                toolStripStatusLabel.Text = "Settings saved";
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogError("Access denied while saving settings", ex);
-                MessageBox.Show("Access denied when saving settings. Try running as administrator or adjust file permissions.",
-                    "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (DirectoryNotFoundException ex)
-            {
-                _logger.LogError("Settings directory not found", ex);
-                MessageBox.Show("Settings folder could not be created. Please check your profile permissions.",
-                    "Directory Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-            catch (IOException ex)
-            {
-                _logger.LogError("IO error while saving settings", ex);
-                MessageBox.Show($"Could not save settings (file may be in use):\n{ex.Message}",
-                    "Settings Save Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger.LogError("Invalid settings data encountered", ex);
-                MessageBox.Show($"Error with settings data:\n{ex.Message}",
-                    "Settings Data Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
-                _logger.LogError("Unexpected error while saving settings", ex);
-                MessageBox.Show($"Unexpected error saving settings:\n{ex.Message}",
-                    "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _logger.LogError("Error applying new settings to the running session", ex);
+                toolStripStatusLabel.Text = "Error applying settings";
             }
         }
     }
@@ -627,6 +609,11 @@ public partial class Form1 : Form
             if (_settings.CheckWindowsVersion && dataGridView.Columns.Contains("colWindowsVersion"))
                 dataGridView.Rows[rowIndex].Cells["colWindowsVersion"].Value = pcInfo.WindowsVersion;
                 
+            if (_settings.CheckInstallDate && dataGridView.Columns.Contains("colInstallDate"))
+                dataGridView.Rows[rowIndex].Cells["colInstallDate"].Value = string.IsNullOrWhiteSpace(pcInfo.InstallDate)
+                    ? "N/A"
+                    : pcInfo.InstallDate;
+
             if (_settings.CheckSerialNumber && dataGridView.Columns.Contains("colSerialNumber"))
                 dataGridView.Rows[rowIndex].Cells["colSerialNumber"].Value = pcInfo.SerialNumber;
 

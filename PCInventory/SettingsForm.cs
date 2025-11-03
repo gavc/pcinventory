@@ -43,6 +43,7 @@ namespace PCInventory
             chkModel.Checked = _settings.CheckModel;
             chkBIOSVersion.Checked = _settings.CheckBIOSVersion;
             chkWindowsVersion.Checked = _settings.CheckWindowsVersion;
+            chkInstallDate.Checked = _settings.CheckInstallDate;
             chkSerialNumber.Checked = _settings.CheckSerialNumber;
             chkPendingReboot.Checked = _settings.CheckPendingReboot;
             chkNetworkConnectionType.Checked = _settings.CheckNetworkConnectionType;
@@ -82,6 +83,7 @@ namespace PCInventory
             chkModel.Checked = true;
             chkBIOSVersion.Checked = true;
             chkWindowsVersion.Checked = true;
+            chkInstallDate.Checked = true;
             chkSerialNumber.Checked = true;
             chkPendingReboot.Checked = true;
             chkNetworkConnectionType.Checked = true;
@@ -101,6 +103,7 @@ namespace PCInventory
             chkModel.Checked = false;
             chkBIOSVersion.Checked = false;
             chkWindowsVersion.Checked = false;
+            chkInstallDate.Checked = false;
             chkSerialNumber.Checked = false;
             chkPendingReboot.Checked = false;
             chkNetworkConnectionType.Checked = false;
@@ -182,6 +185,7 @@ namespace PCInventory
             _settings.CheckModel = chkModel.Checked;
             _settings.CheckBIOSVersion = chkBIOSVersion.Checked;
             _settings.CheckWindowsVersion = chkWindowsVersion.Checked;
+            _settings.CheckInstallDate = chkInstallDate.Checked;
             _settings.CheckSerialNumber = chkSerialNumber.Checked;
             _settings.CheckPendingReboot = chkPendingReboot.Checked;
             _settings.CheckNetworkConnectionType = chkNetworkConnectionType.Checked;

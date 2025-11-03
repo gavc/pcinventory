@@ -118,6 +118,7 @@ namespace PCInventory.Services
                 if (settings.CheckModel) headers.Add("Model");
                 if (settings.CheckBIOSVersion) headers.Add("BIOS Version");
                 if (settings.CheckWindowsVersion) headers.Add("Windows Version");
+                if (settings.CheckInstallDate) headers.Add("OS Install Date");
                 if (settings.CheckSerialNumber) headers.Add("Serial Number");
                 if (settings.CheckNetworkConnectionType) headers.Add("Network Connection Type");
                 if (settings.CheckWiFiInfo) headers.Add("WiFi Info");
@@ -148,6 +149,7 @@ namespace PCInventory.Services
                         if (settings.CheckModel) values.Add(EscapeCSV(pcInfo.Model));
                         if (settings.CheckBIOSVersion) values.Add(EscapeCSV(pcInfo.BIOSVersion));
                         if (settings.CheckWindowsVersion) values.Add(EscapeCSV(pcInfo.WindowsVersion));
+                        if (settings.CheckInstallDate) values.Add(EscapeCSV(pcInfo.InstallDate));
                         if (settings.CheckSerialNumber) values.Add(EscapeCSV(pcInfo.SerialNumber));
                         if (settings.CheckNetworkConnectionType) values.Add(EscapeCSV(pcInfo.NetworkConnectionType));
                         if (settings.CheckWiFiInfo) values.Add(EscapeCSV(pcInfo.WiFiInfo));
@@ -206,7 +208,9 @@ namespace PCInventory.Services
             return $"\"{value.Replace("\"", "\"\"")}\"";
         }
 
-        public void SaveSettings(AppSettings settings, string filePath)
+    // Simple, best-effort save. Returns true on success, false on any IO/permission failure.
+    // This avoids throwing exceptions that bubble up to UI message boxes.
+    public bool SaveSettings(AppSettings settings, string filePath)
         {
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
@@ -242,6 +246,20 @@ namespace PCInventory.Services
 
                 for (int attempt = 1; attempt <= 3; attempt++)
                 {
+                    // Cleanup any orphaned temp files from previous runs (best-effort)
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+                        {
+                            var orphanPattern = $".{fileName}.*.tmp";
+                            foreach (var orphan in Directory.GetFiles(directory, orphanPattern))
+                            {
+                                try { File.Delete(orphan); } catch { }
+                            }
+                        }
+                    }
+                    catch { /* ignore cleanup failures */ }
+
                     string tempPath = Path.Combine(directory ?? string.Empty, $".{fileName}.{Guid.NewGuid():N}.tmp");
                     try
                     {
@@ -250,32 +268,24 @@ namespace PCInventory.Services
                         if (File.Exists(fullPath))
                         {
                             File.Replace(tempPath, fullPath, backupPath, ignoreMetadataErrors: true);
-                            try
-                            {
-                                if (File.Exists(backupPath))
-                                {
-                                    File.Delete(backupPath);
-                                }
-                            }
-                            catch
-                            {
-                                // Best-effort cleanup of backup file
-                            }
+                            try { if (File.Exists(backupPath)) File.Delete(backupPath); } catch { }
                         }
                         else
                         {
                             File.Move(tempPath, fullPath);
                         }
 
-                        return;
+                        return true;
                     }
                     catch (UnauthorizedAccessException)
                     {
-                        throw new UnauthorizedAccessException($"Access denied when trying to save settings to: {fullPath}");
+                        System.Diagnostics.Debug.WriteLine($"SaveSettings: access denied writing to {fullPath}");
+                        return false;
                     }
                     catch (DirectoryNotFoundException)
                     {
-                        throw new DirectoryNotFoundException($"Directory not found for settings file: {fullPath}");
+                        System.Diagnostics.Debug.WriteLine($"SaveSettings: directory not found for {fullPath}");
+                        return false;
                     }
                     catch (IOException) when (attempt < 3)
                     {
@@ -284,41 +294,23 @@ namespace PCInventory.Services
                     }
                     catch (IOException ioEx)
                     {
-                        throw new IOException($"IO error when saving settings to: {fullPath}. {ioEx.Message}", ioEx);
+                        System.Diagnostics.Debug.WriteLine($"SaveSettings IO error: {ioEx.Message}");
+                        return false;
                     }
                     finally
                     {
-                        try
-                        {
-                            if (File.Exists(tempPath))
-                            {
-                                File.Delete(tempPath);
-                            }
-                        }
-                        catch
-                        {
-                            // Swallow cleanup exceptions
-                        }
+                        try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
                     }
                 }
 
-                throw new IOException($"Failed to save settings to: {fullPath}. File may be locked.");
-            }
-            catch (UnauthorizedAccessException)
-            {
-                throw;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                throw;
-            }
-            catch (IOException)
-            {
-                throw;
+                // If we reached here, all attempts failed
+                System.Diagnostics.Debug.WriteLine($"SaveSettings: failed to save settings to {fullPath} after retries");
+                return false;
             }
             catch (Exception ex) when (!(ex is ArgumentNullException || ex is ArgumentException || ex is InvalidOperationException))
             {
-                throw new Exception($"Unexpected error saving settings to: {fullPath}. {ex.Message}", ex);
+                System.Diagnostics.Debug.WriteLine($"SaveSettings unexpected error: {ex.Message}");
+                return false;
             }
         }
 
@@ -348,24 +340,31 @@ namespace PCInventory.Services
             {
                 throw new IOException($"IO error when loading settings from: {filePath}. {ioEx.Message}", ioEx);
             }
-            catch (System.Text.Json.JsonException jsonEx)
+                catch (System.Text.Json.JsonException jsonEx)
             {
-                // Try to load backup if available
-                var backupFile = filePath + ".backup";
-                if (File.Exists(backupFile))
+                // Try to load backup if available. Support both legacy '<file>.backup' and new '.<file>.bak' names.
+                var legacyBackup = filePath + ".backup"; // e.g. settings.json.backup
+                string fileNameOnly = Path.GetFileName(filePath);
+                var dotPrefixedBackup = Path.Combine(Path.GetDirectoryName(filePath) ?? string.Empty, $".{fileNameOnly}.bak"); // e.g. .settings.json.bak
+
+                string[] backupCandidates = { dotPrefixedBackup, legacyBackup };
+                foreach (var backupFile in backupCandidates)
                 {
                     try
                     {
-                        var backupJson = File.ReadAllText(backupFile, Encoding.UTF8);
-                        var backupSettings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(backupJson);
-                        return backupSettings ?? new AppSettings();
+                        if (File.Exists(backupFile))
+                        {
+                            var backupJson = File.ReadAllText(backupFile, Encoding.UTF8);
+                            var backupSettings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(backupJson);
+                            return backupSettings ?? new AppSettings();
+                        }
                     }
                     catch
                     {
-                        // If backup also fails, return default settings
+                        // Continue to next candidate
                     }
                 }
-                
+
                 throw new InvalidOperationException($"Error parsing settings file: {filePath}. {jsonEx.Message}. File may be corrupted.", jsonEx);
             }
             catch (Exception ex) when (!(ex is ArgumentException))

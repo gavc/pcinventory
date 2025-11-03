@@ -34,5 +34,6 @@ namespace PCInventory.Models
     {
         public string WindowsVersion { get; set; } = string.Empty;
         public string LastRebootTime { get; set; } = string.Empty;
+        public string InstallDate { get; set; } = string.Empty;
     }
 }

@@ -31,6 +31,7 @@ namespace PCInventory
             grpStandardChecks = new GroupBox();
             chkSerialNumber = new CheckBox();
             chkWindowsVersion = new CheckBox();
+            chkInstallDate = new CheckBox();
             chkBIOSVersion = new CheckBox();
             chkModel = new CheckBox();
             chkMake = new CheckBox();
@@ -74,6 +75,7 @@ namespace PCInventory
             grpStandardChecks.Controls.Add(chkPendingReboot);
             grpStandardChecks.Controls.Add(chkNetworkConnectionType);
             grpStandardChecks.Controls.Add(chkWiFiInfo);
+            grpStandardChecks.Controls.Add(chkInstallDate);
             grpStandardChecks.Controls.Add(btnSelectAll);
             grpStandardChecks.Controls.Add(btnDeselectAll);
             grpStandardChecks.Location = new Point(10, 10);
@@ -217,6 +219,15 @@ namespace PCInventory
             chkWiFiInfo.TabIndex = 15;
             chkWiFiInfo.Text = "WiFi Info";
             chkWiFiInfo.UseVisualStyleBackColor = true;
+
+            // chkInstallDate (moved below WiFi Info)
+            chkInstallDate.AutoSize = true;
+            chkInstallDate.Location = new Point(200, 230);
+            chkInstallDate.Name = "chkInstallDate";
+            chkInstallDate.Size = new Size(120, 24);
+            chkInstallDate.TabIndex = 16;
+            chkInstallDate.Text = "OS Install Date";
+            chkInstallDate.UseVisualStyleBackColor = true;
             
             // btnSelectAll
             btnSelectAll.Location = new Point(80, 320);
@@ -327,6 +338,7 @@ namespace PCInventory
         private GroupBox grpStandardChecks;
         private CheckBox chkSerialNumber;
         private CheckBox chkWindowsVersion;
+    private CheckBox chkInstallDate;
         private CheckBox chkBIOSVersion;
         private CheckBox chkModel;
         private CheckBox chkMake;

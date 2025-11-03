@@ -18,6 +18,7 @@ namespace PCInventory.Models
         public string PendingRebootStatus { get; set; } = string.Empty;
         public string NetworkConnectionType { get; set; } = string.Empty;
         public string WiFiInfo { get; set; } = string.Empty;
+    public string InstallDate { get; set; } = string.Empty;
         public Dictionary<string, string> CustomRegistryValues { get; set; } = new Dictionary<string, string>();
 
         // Raw values for proper sorting (in bytes)

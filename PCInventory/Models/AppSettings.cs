@@ -17,6 +17,8 @@ namespace PCInventory.Models
         public bool CheckPendingReboot { get; set; } = true;
         public bool CheckNetworkConnectionType { get; set; } = true;
         public bool CheckWiFiInfo { get; set; } = true;
+    // New standard check: OS Install Date
+    public bool CheckInstallDate { get; set; } = true;
 
         // Registry Check settings
         public List<RegistryCheckSetting> RegistryChecks { get; set; } = new List<RegistryCheckSetting>();

@@ -110,11 +110,12 @@ namespace PCInventory.Services
                             }
                             
                             // Batch #5: Operating System Information
-                            if (_settings.CheckWindowsVersion || _settings.CheckLastRebootTime)
+                            if (_settings.CheckWindowsVersion || _settings.CheckLastRebootTime || _settings.CheckInstallDate)
                             {
-                                var osInfo = GetOperatingSystemInformationBatch(wmiScope);
+                                var osInfo = GetOperatingSystemInformationBatch(wmiScope, pcName);
                                 if (_settings.CheckWindowsVersion) pcInfo.WindowsVersion = osInfo.WindowsVersion;
                                 if (_settings.CheckLastRebootTime) pcInfo.LastRebootTime = osInfo.LastRebootTime;
+                                if (_settings.CheckInstallDate) pcInfo.InstallDate = osInfo.InstallDate;
                             }
                             
                             // Individual checks that can't be easily batched
@@ -229,6 +230,46 @@ namespace PCInventory.Services
                     
                     throw; // Re-throw if WMI fallback is not allowed
                 }
+            }
+            catch (Exception ex)
+            {
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        private string GetInstallDateFromRegistry(string pcName)
+        {
+            try
+            {
+                var rawValue = GetRemoteRegistryValue(pcName, @"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", "InstallDate");
+
+                if (string.IsNullOrWhiteSpace(rawValue))
+                    return "Value not found";
+
+                if (rawValue.Equals("Value not found", StringComparison.OrdinalIgnoreCase) ||
+                    rawValue.Equals("Key not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return rawValue;
+                }
+
+                if (rawValue.StartsWith("Error", StringComparison.OrdinalIgnoreCase))
+                    return rawValue;
+
+                if (long.TryParse(rawValue, out long epochSeconds) && epochSeconds > 0)
+                {
+                    try
+                    {
+                        return DateTimeOffset.FromUnixTimeSeconds(epochSeconds)
+                            .ToLocalTime()
+                            .ToString("yyyy-MM-dd HH:mm:ss");
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        // Fall through to returning the raw value if conversion fails
+                    }
+                }
+
+                return rawValue;
             }
             catch (Exception ex)
             {
@@ -1023,12 +1064,12 @@ namespace PCInventory.Services
             }
         }
 
-        private Models.OperatingSystemInformation GetOperatingSystemInformationBatch(ManagementScope scope)
+    private Models.OperatingSystemInformation GetOperatingSystemInformationBatch(ManagementScope scope, string pcName)
         {
             try
             {
                 using var searcher = new ManagementObjectSearcher(scope,
-                    new ObjectQuery("SELECT Caption, Version, LastBootUpTime FROM Win32_OperatingSystem"));
+                    new ObjectQuery("SELECT Caption, Version, LastBootUpTime, InstallDate FROM Win32_OperatingSystem"));
                 searcher.Options.Timeout = TimeSpan.FromSeconds(30);
                 
                 using var collection = searcher.Get();
@@ -1037,7 +1078,7 @@ namespace PCInventory.Services
                     var caption = obj["Caption"]?.ToString() ?? string.Empty;
                     var version = obj["Version"]?.ToString() ?? string.Empty;
                     var windowsVersion = $"{caption} ({version})";
-                    
+
                     var lastRebootTime = "N/A";
                     try
                     {
@@ -1050,23 +1091,58 @@ namespace PCInventory.Services
                     }
                     catch (Exception ex)
                     {
-                        lastRebootTime = $"Error parsing date: {ex.Message}";
+                        lastRebootTime = $"Error parsing last boot time: {ex.Message}";
                     }
-                    
-                    return new Models.OperatingSystemInformation
+
+                    var installDate = string.Empty;
+                    try
+                    {
+                        var rawInstall = obj["InstallDate"]?.ToString();
+                        if (!string.IsNullOrWhiteSpace(rawInstall))
+                        {
+                            var installDateTime = ManagementDateTimeConverter.ToDateTime(rawInstall);
+                            installDate = installDateTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        installDate = $"Error parsing install date: {ex.Message}";
+                    }
+
+                    if (string.IsNullOrWhiteSpace(installDate) || installDate.Equals("N/A", StringComparison.OrdinalIgnoreCase) || installDate.StartsWith("Error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        installDate = GetInstallDateFromRegistry(pcName);
+                    }
+
+                    var info = new Models.OperatingSystemInformation
                     {
                         WindowsVersion = windowsVersion,
-                        LastRebootTime = lastRebootTime
+                        LastRebootTime = lastRebootTime,
+                        InstallDate = installDate
                     };
+
+                    if (string.IsNullOrWhiteSpace(info.InstallDate))
+                    {
+                        info.InstallDate = GetInstallDateFromRegistry(pcName);
+                    }
+
+                    return info;
                 }
-                return new Models.OperatingSystemInformation { WindowsVersion = "N/A", LastRebootTime = "N/A" };
+                var fallbackInfo = new Models.OperatingSystemInformation
+                {
+                    WindowsVersion = "N/A",
+                    LastRebootTime = "N/A",
+                    InstallDate = GetInstallDateFromRegistry(pcName)
+                };
+                return fallbackInfo;
             }
             catch (UnauthorizedAccessException)
             {
                 return new Models.OperatingSystemInformation
                 {
                     WindowsVersion = "Access Denied",
-                    LastRebootTime = "Access Denied"
+                    LastRebootTime = "Access Denied",
+                    InstallDate = "Access Denied"
                 };
             }
             catch (System.Management.ManagementException mgmtEx)
@@ -1075,7 +1151,8 @@ namespace PCInventory.Services
                 return new Models.OperatingSystemInformation
                 {
                     WindowsVersion = errorMsg,
-                    LastRebootTime = errorMsg
+                    LastRebootTime = errorMsg,
+                    InstallDate = errorMsg
                 };
             }
             catch (TimeoutException)
@@ -1083,7 +1160,8 @@ namespace PCInventory.Services
                 return new Models.OperatingSystemInformation
                 {
                     WindowsVersion = "Timeout",
-                    LastRebootTime = "Timeout"
+                    LastRebootTime = "Timeout",
+                    InstallDate = "Timeout"
                 };
             }
             catch (Exception ex)
@@ -1091,7 +1169,8 @@ namespace PCInventory.Services
                 return new Models.OperatingSystemInformation
                 {
                     WindowsVersion = $"Error: {ex.Message}",
-                    LastRebootTime = $"Error: {ex.Message}"
+                    LastRebootTime = $"Error: {ex.Message}",
+                    InstallDate = $"Error: {ex.Message}"
                 };
             }
         }
