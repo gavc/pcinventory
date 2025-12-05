@@ -4,7 +4,7 @@ A comprehensive Windows Forms application for gathering and managing PC inventor
 
 ## 🎯 Overview
 
-PC Inventory is a .NET 8.0 Windows application that collects detailed system information from multiple computers simultaneously, providing IT administrators and system managers with a centralized view of their hardware and software inventory.
+PC Inventory is a .NET 10.0 Windows application that collects detailed system information from multiple computers simultaneously, providing IT administrators and system managers with a centralized view of their hardware and software inventory.
 
 ## ✨ Features
 
@@ -31,7 +31,7 @@ PC Inventory is a .NET 8.0 Windows application that collects detailed system inf
 
 ### Prerequisites
 - Windows 10/11 or Windows Server 2016+
-- .NET 8.0 Runtime
+- .NET 10.0 Runtime
 - Administrative privileges (recommended for full WMI access)
 - Network access to target computers
 
@@ -55,7 +55,7 @@ PC Inventory is a .NET 8.0 Windows application that collects detailed system inf
 
    Or execute the built executable:
    ```bash
-   .\PCInventory\bin\Release\net8.0-windows\PCInventory.exe
+   .\PCInventory\bin\Release\net10.0-windows\PCInventory.exe
    ```
 
 ### Quick Start
@@ -191,10 +191,10 @@ dotnet run --project PCInventory
 ```
 
 ### Technology Stack
-- **.NET 8.0**: Modern .NET framework with Windows Forms
+- **.NET 10.0**: Modern .NET framework with Windows Forms
 - **System.Management**: WMI access for system information retrieval
 - **Windows Forms**: Native Windows UI framework
-- **C# 12**: Latest C# language features
+- **C# 13**: Latest C# language features
 
 ### Contributing
 1. Fork the repository
@@ -215,6 +215,14 @@ For support, bug reports, or feature requests, please:
 3. Include log files and system information for bug reports
 
 ## 🔄 Version History
+
+### Version 0.3.0 (.NET 10 Upgrade - December 5, 2025)
+- **Upgraded to .NET 10.0** from .NET 8.0
+- Updated to C# 13 language features
+- Updated System.Management package to version 10.0.0
+- Updated all documentation references to .NET 10
+- Verified full compatibility with .NET 10 runtime
+- Build and runtime testing completed successfully
 
 ### Version 0.2.1 (Performance Release - October 23, 2025)
 - **Major performance improvements: 30-40% faster PC scanning**

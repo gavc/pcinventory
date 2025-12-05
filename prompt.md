@@ -1,4 +1,4 @@
-# Windows Forms C# .NET 8 - Remote PC Health Checker
+# Windows Forms C# .NET 10 - Remote PC Health Checker
 
 ## Overview
 A simple Windows Forms application to remotely check the health and system values of multiple PCs, using multi-threaded, non-blocking operations.
@@ -37,7 +37,7 @@ A simple Windows Forms application to remotely check the health and system value
    - Status Strip to show current status/progress and any other necessary messages
 
 ## Technical Requirements
-- **Framework**: .NET 8
+- **Framework**: .NET 10
 - **UI Framework**: Windows Forms
 - **Concurrency**: Multi-threading with Task Parallel Library (TPL)
 - **File Handling**: Read/write operations for import/export
