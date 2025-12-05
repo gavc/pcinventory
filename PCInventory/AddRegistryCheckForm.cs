@@ -1,10 +1,19 @@
+using System.ComponentModel;
+
 namespace PCInventory
 {
     public partial class AddRegistryCheckForm : Form
     {
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string FriendlyName { get; set; } = string.Empty;
+        
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string KeyPath { get; set; } = "HKEY_LOCAL_MACHINE\\";
+        
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string ValueName { get; set; } = string.Empty;
+        
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool IsEnabled { get; set; } = true;
 
         public AddRegistryCheckForm()

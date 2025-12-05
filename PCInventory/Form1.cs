@@ -837,7 +837,7 @@ public partial class Form1 : Form
         // First add column headers
         foreach (DataGridViewCell cell in row.Cells)
         {
-            if (cell.OwningColumn.Visible)
+            if (cell.OwningColumn?.Visible == true)
             {
                 rowData.Append(cell.OwningColumn.HeaderText);
                 rowData.Append("\t");
@@ -848,7 +848,7 @@ public partial class Form1 : Form
         // Then add values
         foreach (DataGridViewCell cell in row.Cells)
         {
-            if (cell.OwningColumn.Visible)
+            if (cell.OwningColumn?.Visible == true)
             {
                 rowData.Append(cell.Value?.ToString() ?? string.Empty);
                 rowData.Append("\t");
