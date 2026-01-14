@@ -95,13 +95,13 @@ namespace PCInventory
             flpStandardChecks.Controls.Add(chkBIOSVersion);
             flpStandardChecks.Controls.Add(chkWindowsVersion);
             flpStandardChecks.Controls.Add(chkSerialNumber);
+            flpStandardChecks.Controls.Add(chkInstallDate);
             flpStandardChecks.Controls.Add(chkTotalRAM);
             flpStandardChecks.Controls.Add(chkFreeHDDSpace);
             flpStandardChecks.Controls.Add(chkHDDSize);
             flpStandardChecks.Controls.Add(chkPendingReboot);
             flpStandardChecks.Controls.Add(chkNetworkConnectionType);
             flpStandardChecks.Controls.Add(chkWiFiInfo);
-            flpStandardChecks.Controls.Add(chkInstallDate);
             
             // chkSerialNumber
             chkSerialNumber.AutoSize = true;
