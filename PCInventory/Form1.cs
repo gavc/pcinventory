@@ -79,6 +79,7 @@ public partial class Form1 : Form
             dataGridView.ContextMenuStrip = gridContextMenu;
             dataGridView.CellMouseDown += DataGridView_CellMouseDown;
             dataGridView.CellFormatting += DataGridView_CellFormatting;
+            dataGridView.SortCompare += DataGridView_SortCompare;
             
             // Setup initial DataGridView columns
             SetupDataGridViewColumns();
@@ -180,6 +181,18 @@ public partial class Form1 : Form
         foreach (DataGridViewColumn col in dataGridView.Columns)
         {
             col.ReadOnly = true;
+            
+            // Enable sorting for numeric columns (they use SortCompare event)
+            if (col.Name == "colHDDSize" || 
+                col.Name == "colFreeHDDSpace" || 
+                col.Name == "colTotalRAM")
+            {
+                col.SortMode = DataGridViewColumnSortMode.Automatic;
+            }
+            else
+            {
+                col.SortMode = DataGridViewColumnSortMode.Automatic;
+            }
         }
     }
 
@@ -1204,6 +1217,64 @@ public partial class Form1 : Form
         catch (Exception ex)
         {
             _logger.LogError("Error in DataGridView cell formatting", ex);
+        }
+    }
+
+    private void DataGridView_SortCompare(object? sender, DataGridViewSortCompareEventArgs e)
+    {
+        try
+        {
+            // Handle numeric sorting for storage and RAM columns
+            if (e.Column.Name == "colHDDSize" || 
+                e.Column.Name == "colFreeHDDSpace" || 
+                e.Column.Name == "colTotalRAM")
+            {
+                // Both values should be doubles (raw bytes)
+                if (e.CellValue1 is double value1 && e.CellValue2 is double value2)
+                {
+                    e.SortResult = value1.CompareTo(value2);
+                    e.Handled = true;
+                }
+                // Handle cases where one or both values might be null or invalid
+                else
+                {
+                    // Treat null, zero, or negative values as "N/A" or "Error" and sort them to the bottom
+                    double val1 = e.CellValue1 is double d1 ? d1 : -1;
+                    double val2 = e.CellValue2 is double d2 ? d2 : -1;
+                    
+                    // If both are invalid, they're equal
+                    if (val1 <= 0 && val2 <= 0)
+                    {
+                        e.SortResult = 0;
+                    }
+                    // If only val1 is invalid, it goes to the bottom (greater)
+                    else if (val1 <= 0)
+                    {
+                        e.SortResult = 1;
+                    }
+                    // If only val2 is invalid, it goes to the bottom (val1 is less)
+                    else if (val2 <= 0)
+                    {
+                        e.SortResult = -1;
+                    }
+                    // Both are valid, compare normally
+                    else
+                    {
+                        e.SortResult = val1.CompareTo(val2);
+                    }
+                    e.Handled = true;
+                }
+            }
+            // For all other columns, use default string comparison
+            else
+            {
+                e.Handled = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error in DataGridView sort comparison", ex);
+            e.Handled = false;
         }
     }
 
