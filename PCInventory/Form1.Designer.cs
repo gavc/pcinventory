@@ -6,6 +6,7 @@ partial class Form1
     ///  Required designer variable.
     /// </summary>
     private System.ComponentModel.IContainer components = null;
+    private ToolStripMenuItem pastePCListToolStripMenuItem = null!;
 
     /// <summary>
     ///  Clean up any resources being used.
@@ -32,6 +33,7 @@ partial class Form1
         menuStrip = new MenuStrip();
         fileToolStripMenuItem = new ToolStripMenuItem();
         importToolStripMenuItem = new ToolStripMenuItem();
+        pastePCListToolStripMenuItem = new ToolStripMenuItem();
         exportToolStripMenuItem = new ToolStripMenuItem();
         toolStripSeparator1 = new ToolStripSeparator();
         scanSinglePCToolStripMenuItem = new ToolStripMenuItem();
@@ -78,7 +80,8 @@ partial class Form1
         
         // fileToolStripMenuItem
         fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { 
-            importToolStripMenuItem, 
+            importToolStripMenuItem,
+            pastePCListToolStripMenuItem,
             exportToolStripMenuItem, 
             toolStripSeparator1, 
             scanSinglePCToolStripMenuItem, 
@@ -95,8 +98,15 @@ partial class Form1
         importToolStripMenuItem.Name = "importToolStripMenuItem";
         importToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.O;
         importToolStripMenuItem.Size = new Size(224, 26);
-        importToolStripMenuItem.Text = "Import PCs...";
+        importToolStripMenuItem.Text = "Import PCs from File...";
         importToolStripMenuItem.Click += importToolStripMenuItem_Click;
+        
+        // pastePCListToolStripMenuItem
+        pastePCListToolStripMenuItem.Name = "pastePCListToolStripMenuItem";
+        pastePCListToolStripMenuItem.ShortcutKeys = Keys.Control | Keys.V;
+        pastePCListToolStripMenuItem.Size = new Size(270, 26);
+        pastePCListToolStripMenuItem.Text = "Paste PC List...";
+        pastePCListToolStripMenuItem.Click += pastePCListToolStripMenuItem_Click;
         
         // exportToolStripMenuItem
         exportToolStripMenuItem.Enabled = false;
