@@ -44,7 +44,7 @@ namespace PCInventory.Utils
                 var regex = new Regex(regexPattern.ToString());
                 var match = regex.Match(sanitized);
 
-                if (match.Success && match.Groups.Count > 1)
+                if (match.Success)
                 {
                     return match.Groups[1].Value;
                 }

@@ -371,40 +371,7 @@ public partial class Form1 : Form
         try
         {
             var importedList = _fileService.ImportPCList(openFileDialog.FileName);
-            
-            // Apply sanitization to imported PC names
-            var originalCount = importedList.Count;
-            _pcList = importedList
-                .Select(line => SanitizePCName(line))
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Distinct()
-                .ToList();
-
-            // Update DataGridView with PC list
-            dataGridView.Rows.Clear();
-            foreach (var pcName in _pcList)
-            {
-                int rowIndex = dataGridView.Rows.Add();
-                dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-                dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
-            }
-
-            // Show feedback about sanitization if some entries were filtered
-            var message = $"Loaded {_pcList.Count} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
-            if (originalCount != _pcList.Count)
-            {
-                message = $"Processed {originalCount} line(s) from file.\n" +
-                          $"Valid PC names: {_pcList.Count}\n" +
-                          $"Rejected/duplicates: {originalCount - _pcList.Count}";
-                MessageBox.Show(message, "PC List Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                toolStripStatusLabel.Text = $"Loaded {_pcList.Count} of {originalCount} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
-            }
-            else
-            {
-                toolStripStatusLabel.Text = message;
-            }
-            
-            btnScan.Enabled = _pcList.Count > 0;
+            ProcessAndLoadPCList(importedList, Path.GetFileName(openFileDialog.FileName));
         }
         catch (FileNotFoundException)
         {
@@ -494,16 +461,10 @@ public partial class Form1 : Form
 
             try
             {
-                // Parse the pasted text - split by newlines and apply sanitization
-                var originalLines = textBox.Text
+                // Parse the pasted text - split by newlines
+                var pastedLines = textBox.Text
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                     .Where(line => !string.IsNullOrWhiteSpace(line))
-                    .ToList();
-
-                var pastedLines = originalLines
-                    .Select(line => SanitizePCName(line))
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Distinct()
                     .ToList();
 
                 if (pastedLines.Count == 0)
@@ -513,28 +474,7 @@ public partial class Form1 : Form
                     return;
                 }
 
-                // Show feedback about sanitization
-                if (originalLines.Count != pastedLines.Count)
-                {
-                    var message = $"Processed {originalLines.Count} line(s).\n" +
-                                  $"Valid PC names: {pastedLines.Count}\n" +
-                                  $"Rejected/duplicates: {originalLines.Count - pastedLines.Count}";
-                    MessageBox.Show(message, "PC List Sanitization", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-
-                _pcList = pastedLines;
-
-                // Update DataGridView with PC list
-                dataGridView.Rows.Clear();
-                foreach (var pcName in _pcList)
-                {
-                    int rowIndex = dataGridView.Rows.Add();
-                    dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-                    dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
-                }
-
-                toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from pasted text";
-                btnScan.Enabled = _pcList.Count > 0;
+                ProcessAndLoadPCList(pastedLines, "pasted text");
             }
             catch (Exception ex)
             {
@@ -1282,5 +1222,40 @@ public partial class Form1 : Form
     private string SanitizePCName(string input)
     {
         return PCNameValidator.SanitizePCName(input, _settings.PCNamePattern, _settings.EnablePCNameValidation);
+    }
+
+    private void ProcessAndLoadPCList(List<string> rawLines, string source)
+    {
+        var originalCount = rawLines.Count;
+        _pcList = rawLines
+            .Select(line => SanitizePCName(line))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
+
+        // Update DataGridView with PC list
+        dataGridView.Rows.Clear();
+        foreach (var pcName in _pcList)
+        {
+            int rowIndex = dataGridView.Rows.Add();
+            dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
+            dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
+        }
+
+        // Show feedback about sanitization if some entries were filtered
+        if (originalCount != _pcList.Count)
+        {
+            var message = $"Processed {originalCount} line(s) from {source}.\n" +
+                          $"Valid PC names: {_pcList.Count}\n" +
+                          $"Rejected/duplicates: {originalCount - _pcList.Count}";
+            MessageBox.Show(message, "PC List Processing", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} of {originalCount} PC(s) from {source}";
+        }
+        else
+        {
+            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from {source}";
+        }
+
+        btnScan.Enabled = _pcList.Count > 0;
     }
 }
