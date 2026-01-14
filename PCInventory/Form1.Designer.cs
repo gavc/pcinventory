@@ -209,7 +209,7 @@ partial class Form1
         pnlControls.FlowDirection = FlowDirection.RightToLeft;
         pnlControls.Controls.Add(btnStop);
         pnlControls.Controls.Add(btnScan);
-        pnlControls.Location = new Point(828, 474);
+        pnlControls.Location = new Point(828, 470);
         pnlControls.Name = "pnlControls";
         pnlControls.TabIndex = 3;
         
