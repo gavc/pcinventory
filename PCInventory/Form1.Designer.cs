@@ -48,7 +48,7 @@ partial class Form1
         toolStripStatusLabel = new ToolStripStatusLabel();
         toolStripProgressBar = new ToolStripProgressBar();
         dataGridView = new DataGridView();
-        pnlControls = new Panel();
+        pnlControls = new FlowLayoutPanel();
         btnScan = new Button();
         btnStop = new Button();
         openFileDialog = new OpenFileDialog();
@@ -206,6 +206,7 @@ partial class Form1
         pnlControls.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
         pnlControls.AutoSize = true;
         pnlControls.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlControls.FlowDirection = FlowDirection.RightToLeft;
         pnlControls.Controls.Add(btnStop);
         pnlControls.Controls.Add(btnScan);
         pnlControls.Location = new Point(828, 474);
@@ -215,7 +216,6 @@ partial class Form1
         // btnScan
         btnScan.AutoSize = true;
         btnScan.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        btnScan.Dock = DockStyle.Right;
         btnScan.MinimumSize = new Size(80, 40);
         btnScan.Name = "btnScan";
         btnScan.Padding = new Padding(10, 5, 10, 5);
@@ -227,7 +227,6 @@ partial class Form1
         // btnStop
         btnStop.AutoSize = true;
         btnStop.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        btnStop.Dock = DockStyle.Right;
         btnStop.Enabled = false;
         btnStop.MinimumSize = new Size(80, 40);
         btnStop.Name = "btnStop";
@@ -340,7 +339,7 @@ partial class Form1
     private ToolStripStatusLabel toolStripStatusLabel;
     private ToolStripProgressBar toolStripProgressBar;
     private DataGridView dataGridView;
-    private Panel pnlControls;
+    private FlowLayoutPanel pnlControls;
     private Button btnScan;
     private Button btnStop;
     private OpenFileDialog openFileDialog;
