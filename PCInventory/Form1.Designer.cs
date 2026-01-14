@@ -49,6 +49,7 @@ partial class Form1
         toolStripProgressBar = new ToolStripProgressBar();
         dataGridView = new DataGridView();
         pnlControls = new FlowLayoutPanel();
+        contentLayout = new TableLayoutPanel();
         btnScan = new Button();
         btnStop = new Button();
         openFileDialog = new OpenFileDialog();
@@ -67,6 +68,7 @@ partial class Form1
         statusStrip.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)dataGridView).BeginInit();
         pnlControls.SuspendLayout();
+        contentLayout.SuspendLayout();
         SuspendLayout();
         
         // menuStrip
@@ -190,35 +192,60 @@ partial class Form1
         // dataGridView
         dataGridView.AllowUserToAddRows = false;
         dataGridView.AllowUserToDeleteRows = false;
-        dataGridView.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         dataGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         dataGridView.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        dataGridView.Location = new Point(12, 40);
+        dataGridView.Dock = DockStyle.Fill;
+        dataGridView.Location = new Point(15, 15);
+        dataGridView.Margin = new Padding(0, 0, 0, 6);
         dataGridView.Name = "dataGridView";
         dataGridView.ReadOnly = true;
         dataGridView.RowHeadersWidth = 51;
         dataGridView.RowTemplate.Height = 29;
-        dataGridView.Size = new Size(1076, 428);
+        dataGridView.Size = new Size(1070, 442);
         dataGridView.TabIndex = 2;
         dataGridView.ScrollBars = ScrollBars.Both;
-        
+
         // pnlControls
-        pnlControls.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+        pnlControls.Anchor = AnchorStyles.Right;
         pnlControls.AutoSize = true;
         pnlControls.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         pnlControls.FlowDirection = FlowDirection.RightToLeft;
+        pnlControls.WrapContents = false;
         pnlControls.Controls.Add(btnStop);
         pnlControls.Controls.Add(btnScan);
-        pnlControls.Location = new Point(828, 470);
+        pnlControls.Location = new Point(985, 463);
+        pnlControls.Margin = new Padding(0, 0, 0, 0);
         pnlControls.Name = "pnlControls";
+        pnlControls.Padding = new Padding(0);
         pnlControls.TabIndex = 3;
-        
+
+        // contentLayout
+        contentLayout.AutoSize = false;
+        contentLayout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        contentLayout.ColumnCount = 2;
+        contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        contentLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        contentLayout.Controls.Add(dataGridView, 0, 0);
+        contentLayout.Controls.Add(pnlControls, 1, 1);
+        contentLayout.Dock = DockStyle.Fill;
+        contentLayout.Location = new Point(12, 40);
+        contentLayout.Margin = new Padding(0, 0, 0, 0);
+        contentLayout.Name = "contentLayout";
+        contentLayout.Padding = new Padding(12, 12, 12, 12);
+        contentLayout.RowCount = 2;
+        contentLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        contentLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        contentLayout.Size = new Size(1076, 496);
+        contentLayout.TabIndex = 4;
+        contentLayout.SetColumnSpan(dataGridView, 2);
+
         // btnScan
         btnScan.AutoSize = true;
         btnScan.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        btnScan.MinimumSize = new Size(80, 40);
+        btnScan.MinimumSize = new Size(75, 32);
         btnScan.Name = "btnScan";
-        btnScan.Padding = new Padding(10, 5, 10, 5);
+        btnScan.Padding = new Padding(12, 4, 12, 4);
+        btnScan.Margin = new Padding(6, 0, 0, 0);
         btnScan.TabIndex = 0;
         btnScan.Text = "Scan";
         btnScan.UseVisualStyleBackColor = true;
@@ -228,9 +255,10 @@ partial class Form1
         btnStop.AutoSize = true;
         btnStop.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         btnStop.Enabled = false;
-        btnStop.MinimumSize = new Size(80, 40);
+        btnStop.MinimumSize = new Size(75, 32);
         btnStop.Name = "btnStop";
-        btnStop.Padding = new Padding(10, 5, 10, 5);
+        btnStop.Padding = new Padding(12, 4, 12, 4);
+        btnStop.Margin = new Padding(0, 0, 0, 0);
         btnStop.TabIndex = 1;
         btnStop.Text = "Stop";
         btnStop.UseVisualStyleBackColor = true;
@@ -302,14 +330,14 @@ partial class Form1
         tracertMenuItem.Click += tracertMenuItem_Click;
         
         // Form1
-        AutoScaleDimensions = new SizeF(8F, 20F);
-        AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(1100, 554);
-        Controls.Add(pnlControls);
-        Controls.Add(dataGridView);
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
+        ClientSize = new Size(1100, 600);
+        Controls.Add(contentLayout);
         Controls.Add(statusStrip);
         Controls.Add(menuStrip);
         MainMenuStrip = menuStrip;
+        MinimumSize = new Size(800, 500);
         Name = "Form1";
         Text = "PC Inventory";
         Load += Form1_Load;
@@ -319,6 +347,9 @@ partial class Form1
         statusStrip.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)dataGridView).EndInit();
         pnlControls.ResumeLayout(false);
+        pnlControls.PerformLayout();
+        contentLayout.ResumeLayout(false);
+        contentLayout.PerformLayout();
         ResumeLayout(false);
         PerformLayout();
     }
@@ -340,6 +371,7 @@ partial class Form1
     private ToolStripProgressBar toolStripProgressBar;
     private DataGridView dataGridView;
     private FlowLayoutPanel pnlControls;
+    private TableLayoutPanel contentLayout;
     private Button btnScan;
     private Button btnStop;
     private OpenFileDialog openFileDialog;
