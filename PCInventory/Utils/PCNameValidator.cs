@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace PCInventory.Utils
@@ -23,24 +24,24 @@ namespace PCInventory.Utils
             if (!enableValidation || string.IsNullOrWhiteSpace(pattern))
                 return sanitized;
 
-            // Step 3: Convert pattern to regex
+            // Step 3: Convert pattern to regex using StringBuilder for better performance
             // A = Letter (A-Z), # = Digit (0-9)
-            var regexPattern = "^(";
+            var regexPattern = new StringBuilder("^(");
             foreach (char c in pattern)
             {
                 if (c == 'A' || c == 'a')
-                    regexPattern += "[A-Z]";
+                    regexPattern.Append("[A-Z]");
                 else if (c == '#')
-                    regexPattern += "\\d";
+                    regexPattern.Append("\\d");
                 else
-                    regexPattern += Regex.Escape(c.ToString());
+                    regexPattern.Append(Regex.Escape(c.ToString()));
             }
-            regexPattern += ")";
+            regexPattern.Append(")$");
 
             // Step 4: Try to extract the matching pattern
             try
             {
-                var regex = new Regex(regexPattern, RegexOptions.IgnoreCase);
+                var regex = new Regex(regexPattern.ToString());
                 var match = regex.Match(sanitized);
 
                 if (match.Success && match.Groups.Count > 1)
