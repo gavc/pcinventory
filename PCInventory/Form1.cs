@@ -369,8 +369,16 @@ public partial class Form1 : Form
 
         try
         {
-            _pcList = _fileService.ImportPCList(openFileDialog.FileName);
+            var importedList = _fileService.ImportPCList(openFileDialog.FileName);
             
+            // Apply sanitization to imported PC names
+            var originalCount = importedList.Count;
+            _pcList = importedList
+                .Select(line => SanitizePCName(line))
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct()
+                .ToList();
+
             // Update DataGridView with PC list
             dataGridView.Rows.Clear();
             foreach (var pcName in _pcList)
@@ -380,7 +388,21 @@ public partial class Form1 : Form
                 dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
             }
 
-            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
+            // Show feedback about sanitization if some entries were filtered
+            var message = $"Loaded {_pcList.Count} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
+            if (originalCount != _pcList.Count)
+            {
+                message = $"Processed {originalCount} line(s) from file.\n" +
+                          $"Valid PC names: {_pcList.Count}\n" +
+                          $"Rejected/duplicates: {originalCount - _pcList.Count}";
+                MessageBox.Show(message, "PC List Import", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                toolStripStatusLabel.Text = $"Loaded {_pcList.Count} of {originalCount} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
+            }
+            else
+            {
+                toolStripStatusLabel.Text = message;
+            }
+            
             btnScan.Enabled = _pcList.Count > 0;
         }
         catch (FileNotFoundException)
@@ -471,11 +493,16 @@ public partial class Form1 : Form
 
             try
             {
-                // Parse the pasted text - split by newlines and filter empty entries
-                var pastedLines = textBox.Text
+                // Parse the pasted text - split by newlines and apply sanitization
+                var originalLines = textBox.Text
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(line => line.Trim())
                     .Where(line => !string.IsNullOrWhiteSpace(line))
+                    .ToList();
+
+                var pastedLines = originalLines
+                    .Select(line => SanitizePCName(line))
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct()
                     .ToList();
 
                 if (pastedLines.Count == 0)
@@ -483,6 +510,15 @@ public partial class Form1 : Form
                     MessageBox.Show("No valid PC names found in the pasted text.", 
                         "No Data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
+                }
+
+                // Show feedback about sanitization
+                if (originalLines.Count != pastedLines.Count)
+                {
+                    var message = $"Processed {originalLines.Count} line(s).\n" +
+                                  $"Valid PC names: {pastedLines.Count}\n" +
+                                  $"Rejected/duplicates: {originalLines.Count - pastedLines.Count}";
+                    MessageBox.Show(message, "PC List Sanitization", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 _pcList = pastedLines;
@@ -1240,5 +1276,53 @@ public partial class Form1 : Form
             bytes /= 1024;
         }
         return $"{Math.Round(bytes)} {sizes[order]}";
+    }
+
+    private string SanitizePCName(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        // Step 1: Remove all whitespace and convert to uppercase
+        var sanitized = new string(input.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpper();
+
+        // Step 2: If validation is disabled, just return the sanitized name
+        if (!_settings.EnablePCNameValidation || string.IsNullOrWhiteSpace(_settings.PCNamePattern))
+            return sanitized;
+
+        // Step 3: Convert pattern to regex
+        // A = Letter (A-Z), # = Digit (0-9)
+        var regexPattern = "^(";
+        foreach (char c in _settings.PCNamePattern)
+        {
+            if (c == 'A' || c == 'a')
+                regexPattern += "[A-Z]";
+            else if (c == '#')
+                regexPattern += "\\d";
+            else
+                regexPattern += System.Text.RegularExpressions.Regex.Escape(c.ToString());
+        }
+        regexPattern += ")";
+
+        // Step 4: Try to extract the matching pattern
+        try
+        {
+            var regex = new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var match = regex.Match(sanitized);
+
+            if (match.Success && match.Groups.Count > 1)
+            {
+                return match.Groups[1].Value;
+            }
+            else
+            {
+                return string.Empty; // No match found
+            }
+        }
+        catch
+        {
+            // If regex fails, return empty
+            return string.Empty;
+        }
     }
 }

@@ -22,6 +22,10 @@ namespace PCInventory.Models
 
         // Registry Check settings
         public List<RegistryCheckSetting> RegistryChecks { get; set; } = new List<RegistryCheckSetting>();
+
+        // PC Name Validation settings
+        public string PCNamePattern { get; set; } = string.Empty;
+        public bool EnablePCNameValidation { get; set; } = false;
     }
 
     public class RegistryCheckSetting
