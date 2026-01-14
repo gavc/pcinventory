@@ -1,4 +1,5 @@
 using PCInventory.Models;
+using PCInventory.Utils;
 
 namespace PCInventory
 {
@@ -318,7 +319,7 @@ namespace PCInventory
 
                     foreach (var line in lines)
                     {
-                        var sanitized = SanitizePCName(line, pattern, chkEnablePCNameValidation.Checked);
+                        var sanitized = PCNameValidator.SanitizePCName(line, pattern, chkEnablePCNameValidation.Checked);
                         if (!string.IsNullOrEmpty(sanitized))
                         {
                             results.AppendLine($"✓ \"{line}\" → \"{sanitized}\"");
@@ -351,54 +352,6 @@ namespace PCInventory
             testForm.AcceptButton = btnTest;
 
             testForm.ShowDialog();
-        }
-
-        private string SanitizePCName(string input, string pattern, bool enableValidation)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-                return string.Empty;
-
-            // Step 1: Remove all whitespace and convert to uppercase
-            var sanitized = new string(input.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpper();
-
-            // Step 2: If validation is disabled, just return the sanitized name
-            if (!enableValidation || string.IsNullOrWhiteSpace(pattern))
-                return sanitized;
-
-            // Step 3: Convert pattern to regex
-            // A = Letter (A-Z), # = Digit (0-9)
-            var regexPattern = "^(";
-            foreach (char c in pattern)
-            {
-                if (c == 'A' || c == 'a')
-                    regexPattern += "[A-Z]";
-                else if (c == '#')
-                    regexPattern += "\\d";
-                else
-                    regexPattern += System.Text.RegularExpressions.Regex.Escape(c.ToString());
-            }
-            regexPattern += ")";
-
-            // Step 4: Try to extract the matching pattern
-            try
-            {
-                var regex = new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                var match = regex.Match(sanitized);
-
-                if (match.Success && match.Groups.Count > 1)
-                {
-                    return match.Groups[1].Value;
-                }
-                else
-                {
-                    return string.Empty; // No match found
-                }
-            }
-            catch
-            {
-                // If regex fails, return empty
-                return string.Empty;
-            }
         }
     }
 }

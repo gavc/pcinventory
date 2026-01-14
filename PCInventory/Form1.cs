@@ -1,5 +1,6 @@
 using PCInventory.Models;
 using PCInventory.Services;
+using PCInventory.Utils;
 using System.ComponentModel;
 using System.Text;
 
@@ -1280,49 +1281,6 @@ public partial class Form1 : Form
 
     private string SanitizePCName(string input)
     {
-        if (string.IsNullOrWhiteSpace(input))
-            return string.Empty;
-
-        // Step 1: Remove all whitespace and convert to uppercase
-        var sanitized = new string(input.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpper();
-
-        // Step 2: If validation is disabled, just return the sanitized name
-        if (!_settings.EnablePCNameValidation || string.IsNullOrWhiteSpace(_settings.PCNamePattern))
-            return sanitized;
-
-        // Step 3: Convert pattern to regex
-        // A = Letter (A-Z), # = Digit (0-9)
-        var regexPattern = "^(";
-        foreach (char c in _settings.PCNamePattern)
-        {
-            if (c == 'A' || c == 'a')
-                regexPattern += "[A-Z]";
-            else if (c == '#')
-                regexPattern += "\\d";
-            else
-                regexPattern += System.Text.RegularExpressions.Regex.Escape(c.ToString());
-        }
-        regexPattern += ")";
-
-        // Step 4: Try to extract the matching pattern
-        try
-        {
-            var regex = new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            var match = regex.Match(sanitized);
-
-            if (match.Success && match.Groups.Count > 1)
-            {
-                return match.Groups[1].Value;
-            }
-            else
-            {
-                return string.Empty; // No match found
-            }
-        }
-        catch
-        {
-            // If regex fails, return empty
-            return string.Empty;
-        }
+        return PCNameValidator.SanitizePCName(input, _settings.PCNamePattern, _settings.EnablePCNameValidation);
     }
 }
