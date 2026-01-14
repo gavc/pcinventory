@@ -204,27 +204,34 @@ partial class Form1
         
         // pnlControls
         pnlControls.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-        pnlControls.Controls.Add(btnScan);
+        pnlControls.AutoSize = true;
+        pnlControls.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         pnlControls.Controls.Add(btnStop);
+        pnlControls.Controls.Add(btnScan);
         pnlControls.Location = new Point(828, 474);
         pnlControls.Name = "pnlControls";
-        pnlControls.Size = new Size(260, 51);
         pnlControls.TabIndex = 3;
         
         // btnScan
-        btnScan.Location = new Point(79, 3);
+        btnScan.AutoSize = true;
+        btnScan.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        btnScan.Dock = DockStyle.Right;
+        btnScan.MinimumSize = new Size(80, 40);
         btnScan.Name = "btnScan";
-        btnScan.Size = new Size(80, 40);
+        btnScan.Padding = new Padding(10, 5, 10, 5);
         btnScan.TabIndex = 0;
         btnScan.Text = "Scan";
         btnScan.UseVisualStyleBackColor = true;
         btnScan.Click += btnScan_Click;
         
         // btnStop
+        btnStop.AutoSize = true;
+        btnStop.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        btnStop.Dock = DockStyle.Right;
         btnStop.Enabled = false;
-        btnStop.Location = new Point(165, 3);
+        btnStop.MinimumSize = new Size(80, 40);
         btnStop.Name = "btnStop";
-        btnStop.Size = new Size(80, 40);
+        btnStop.Padding = new Padding(10, 5, 10, 5);
         btnStop.TabIndex = 1;
         btnStop.Text = "Stop";
         btnStop.UseVisualStyleBackColor = true;

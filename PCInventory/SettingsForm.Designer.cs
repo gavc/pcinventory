@@ -29,6 +29,7 @@ namespace PCInventory
         private void InitializeComponent()
         {
             grpStandardChecks = new GroupBox();
+            flpStandardChecks = new FlowLayoutPanel();
             chkSerialNumber = new CheckBox();
             chkWindowsVersion = new CheckBox();
             chkInstallDate = new CheckBox();
@@ -67,22 +68,7 @@ namespace PCInventory
             SuspendLayout();
             
             // grpStandardChecks
-            grpStandardChecks.Controls.Add(chkSerialNumber);
-            grpStandardChecks.Controls.Add(chkWindowsVersion);
-            grpStandardChecks.Controls.Add(chkBIOSVersion);
-            grpStandardChecks.Controls.Add(chkModel);
-            grpStandardChecks.Controls.Add(chkMake);
-            grpStandardChecks.Controls.Add(chkLastRebootTime);
-            grpStandardChecks.Controls.Add(chkLoggedOnUser);
-            grpStandardChecks.Controls.Add(chkMACAddress);
-            grpStandardChecks.Controls.Add(chkIPAddress);
-            grpStandardChecks.Controls.Add(chkTotalRAM);
-            grpStandardChecks.Controls.Add(chkFreeHDDSpace);
-            grpStandardChecks.Controls.Add(chkHDDSize);
-            grpStandardChecks.Controls.Add(chkPendingReboot);
-            grpStandardChecks.Controls.Add(chkNetworkConnectionType);
-            grpStandardChecks.Controls.Add(chkWiFiInfo);
-            grpStandardChecks.Controls.Add(chkInstallDate);
+            grpStandardChecks.Controls.Add(flpStandardChecks);
             grpStandardChecks.Controls.Add(btnSelectAll);
             grpStandardChecks.Controls.Add(btnDeselectAll);
             grpStandardChecks.Location = new Point(10, 10);
@@ -92,146 +78,155 @@ namespace PCInventory
             grpStandardChecks.TabStop = false;
             grpStandardChecks.Text = "Standard Health Checks";
             
+            // flpStandardChecks
+            flpStandardChecks.AutoScroll = true;
+            flpStandardChecks.FlowDirection = FlowDirection.TopDown;
+            flpStandardChecks.Location = new Point(10, 25);
+            flpStandardChecks.Name = "flpStandardChecks";
+            flpStandardChecks.Size = new Size(360, 285);
+            flpStandardChecks.TabIndex = 0;
+            flpStandardChecks.WrapContents = false;
+            flpStandardChecks.Controls.Add(chkIPAddress);
+            flpStandardChecks.Controls.Add(chkMACAddress);
+            flpStandardChecks.Controls.Add(chkLoggedOnUser);
+            flpStandardChecks.Controls.Add(chkLastRebootTime);
+            flpStandardChecks.Controls.Add(chkMake);
+            flpStandardChecks.Controls.Add(chkModel);
+            flpStandardChecks.Controls.Add(chkBIOSVersion);
+            flpStandardChecks.Controls.Add(chkWindowsVersion);
+            flpStandardChecks.Controls.Add(chkSerialNumber);
+            flpStandardChecks.Controls.Add(chkTotalRAM);
+            flpStandardChecks.Controls.Add(chkFreeHDDSpace);
+            flpStandardChecks.Controls.Add(chkHDDSize);
+            flpStandardChecks.Controls.Add(chkPendingReboot);
+            flpStandardChecks.Controls.Add(chkNetworkConnectionType);
+            flpStandardChecks.Controls.Add(chkWiFiInfo);
+            flpStandardChecks.Controls.Add(chkInstallDate);
+            
             // chkSerialNumber
             chkSerialNumber.AutoSize = true;
-            chkSerialNumber.Location = new Point(20, 290);
+            chkSerialNumber.Margin = new Padding(3, 2, 3, 2);
             chkSerialNumber.Name = "chkSerialNumber";
-            chkSerialNumber.Size = new Size(129, 24);
             chkSerialNumber.TabIndex = 13;
             chkSerialNumber.Text = "Serial Number";
             chkSerialNumber.UseVisualStyleBackColor = true;
             
             // chkWindowsVersion
             chkWindowsVersion.AutoSize = true;
-            chkWindowsVersion.Location = new Point(20, 260);
+            chkWindowsVersion.Margin = new Padding(3, 2, 3, 2);
             chkWindowsVersion.Name = "chkWindowsVersion";
-            chkWindowsVersion.Size = new Size(147, 24);
             chkWindowsVersion.TabIndex = 12;
             chkWindowsVersion.Text = "Windows Version";
             chkWindowsVersion.UseVisualStyleBackColor = true;
             
             // chkBIOSVersion
             chkBIOSVersion.AutoSize = true;
-            chkBIOSVersion.Location = new Point(20, 230);
+            chkBIOSVersion.Margin = new Padding(3, 2, 3, 2);
             chkBIOSVersion.Name = "chkBIOSVersion";
-            chkBIOSVersion.Size = new Size(116, 24);
             chkBIOSVersion.TabIndex = 11;
             chkBIOSVersion.Text = "BIOS Version";
             chkBIOSVersion.UseVisualStyleBackColor = true;
             
             // chkModel
             chkModel.AutoSize = true;
-            chkModel.Location = new Point(20, 200);
+            chkModel.Margin = new Padding(3, 2, 3, 2);
             chkModel.Name = "chkModel";
-            chkModel.Size = new Size(74, 24);
             chkModel.TabIndex = 10;
             chkModel.Text = "Model";
             chkModel.UseVisualStyleBackColor = true;
             
             // chkMake
             chkMake.AutoSize = true;
-            chkMake.Location = new Point(20, 170);
+            chkMake.Margin = new Padding(3, 2, 3, 2);
             chkMake.Name = "chkMake";
-            chkMake.Size = new Size(69, 24);
             chkMake.TabIndex = 9;
             chkMake.Text = "Make";
             chkMake.UseVisualStyleBackColor = true;
             
             // chkLastRebootTime
             chkLastRebootTime.AutoSize = true;
-            chkLastRebootTime.Location = new Point(20, 140);
+            chkLastRebootTime.Margin = new Padding(3, 2, 3, 2);
             chkLastRebootTime.Name = "chkLastRebootTime";
-            chkLastRebootTime.Size = new Size(144, 24);
             chkLastRebootTime.TabIndex = 8;
             chkLastRebootTime.Text = "Last Reboot Time";
             chkLastRebootTime.UseVisualStyleBackColor = true;
             
             // chkLoggedOnUser
             chkLoggedOnUser.AutoSize = true;
-            chkLoggedOnUser.Location = new Point(20, 110);
+            chkLoggedOnUser.Margin = new Padding(3, 2, 3, 2);
             chkLoggedOnUser.Name = "chkLoggedOnUser";
-            chkLoggedOnUser.Size = new Size(140, 24);
             chkLoggedOnUser.TabIndex = 7;
             chkLoggedOnUser.Text = "Logged-on User";
             chkLoggedOnUser.UseVisualStyleBackColor = true;
             
             // chkMACAddress
             chkMACAddress.AutoSize = true;
-            chkMACAddress.Location = new Point(20, 80);
+            chkMACAddress.Margin = new Padding(3, 2, 3, 2);
             chkMACAddress.Name = "chkMACAddress";
-            chkMACAddress.Size = new Size(120, 24);
             chkMACAddress.TabIndex = 6;
             chkMACAddress.Text = "MAC Address";
             chkMACAddress.UseVisualStyleBackColor = true;
             
             // chkIPAddress
             chkIPAddress.AutoSize = true;
-            chkIPAddress.Location = new Point(20, 50);
+            chkIPAddress.Margin = new Padding(3, 2, 3, 2);
             chkIPAddress.Name = "chkIPAddress";
-            chkIPAddress.Size = new Size(101, 24);
             chkIPAddress.TabIndex = 5;
             chkIPAddress.Text = "IP Address";
             chkIPAddress.UseVisualStyleBackColor = true;
             
             // chkTotalRAM
             chkTotalRAM.AutoSize = true;
-            chkTotalRAM.Location = new Point(200, 50);
+            chkTotalRAM.Margin = new Padding(3, 2, 3, 2);
             chkTotalRAM.Name = "chkTotalRAM";
-            chkTotalRAM.Size = new Size(103, 24);
             chkTotalRAM.TabIndex = 4;
             chkTotalRAM.Text = "Total RAM";
             chkTotalRAM.UseVisualStyleBackColor = true;
             
             // chkFreeHDDSpace
             chkFreeHDDSpace.AutoSize = true;
-            chkFreeHDDSpace.Location = new Point(200, 80);
+            chkFreeHDDSpace.Margin = new Padding(3, 2, 3, 2);
             chkFreeHDDSpace.Name = "chkFreeHDDSpace";
-            chkFreeHDDSpace.Size = new Size(145, 24);
             chkFreeHDDSpace.TabIndex = 3;
             chkFreeHDDSpace.Text = "Free HDD Space";
             chkFreeHDDSpace.UseVisualStyleBackColor = true;
             
             // chkHDDSize
             chkHDDSize.AutoSize = true;
-            chkHDDSize.Location = new Point(200, 110);
+            chkHDDSize.Margin = new Padding(3, 2, 3, 2);
             chkHDDSize.Name = "chkHDDSize";
-            chkHDDSize.Size = new Size(93, 24);
             chkHDDSize.TabIndex = 2;
             chkHDDSize.Text = "HDD Size";
             chkHDDSize.UseVisualStyleBackColor = true;
 
             // chkPendingReboot
             chkPendingReboot.AutoSize = true;
-            chkPendingReboot.Location = new Point(200, 140);
+            chkPendingReboot.Margin = new Padding(3, 2, 3, 2);
             chkPendingReboot.Name = "chkPendingReboot";
-            chkPendingReboot.Size = new Size(140, 24);
             chkPendingReboot.TabIndex = 13;
             chkPendingReboot.Text = "Pending Reboot";
             chkPendingReboot.UseVisualStyleBackColor = true;
             
             // chkNetworkConnectionType
             chkNetworkConnectionType.AutoSize = true;
-            chkNetworkConnectionType.Location = new Point(200, 170);
+            chkNetworkConnectionType.Margin = new Padding(3, 2, 3, 2);
             chkNetworkConnectionType.Name = "chkNetworkConnectionType";
-            chkNetworkConnectionType.Size = new Size(170, 24);
             chkNetworkConnectionType.TabIndex = 14;
             chkNetworkConnectionType.Text = "Network Connection";
             chkNetworkConnectionType.UseVisualStyleBackColor = true;
             
             // chkWiFiInfo
             chkWiFiInfo.AutoSize = true;
-            chkWiFiInfo.Location = new Point(200, 200);
+            chkWiFiInfo.Margin = new Padding(3, 2, 3, 2);
             chkWiFiInfo.Name = "chkWiFiInfo";
-            chkWiFiInfo.Size = new Size(95, 24);
             chkWiFiInfo.TabIndex = 15;
             chkWiFiInfo.Text = "WiFi Info";
             chkWiFiInfo.UseVisualStyleBackColor = true;
 
             // chkInstallDate (moved below WiFi Info)
             chkInstallDate.AutoSize = true;
-            chkInstallDate.Location = new Point(200, 230);
+            chkInstallDate.Margin = new Padding(3, 2, 3, 2);
             chkInstallDate.Name = "chkInstallDate";
-            chkInstallDate.Size = new Size(120, 24);
             chkInstallDate.TabIndex = 16;
             chkInstallDate.Text = "OS Install Date";
             chkInstallDate.UseVisualStyleBackColor = true;
@@ -401,6 +396,7 @@ namespace PCInventory
         #endregion
 
         private GroupBox grpStandardChecks;
+        private FlowLayoutPanel flpStandardChecks;
         private CheckBox chkSerialNumber;
         private CheckBox chkWindowsVersion;
     private CheckBox chkInstallDate;

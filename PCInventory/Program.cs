@@ -8,8 +8,8 @@ static class Program
     [STAThread]
     static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
+        // Enable High DPI support for better scaling on high-resolution displays
+        Application.SetHighDpiMode(HighDpiMode.SystemAware);
         ApplicationConfiguration.Initialize();
         Application.Run(new Form1());
     }    
