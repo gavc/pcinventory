@@ -52,11 +52,18 @@ namespace PCInventory
             btnAddRegistryCheck = new Button();
             btnEditRegistryCheck = new Button();
             btnRemoveRegistryCheck = new Button();
+            grpPCNameValidation = new GroupBox();
+            chkEnablePCNameValidation = new CheckBox();
+            txtPCNamePattern = new TextBox();
+            lblPCNamePattern = new Label();
+            lblPatternHelp = new Label();
+            btnTestPattern = new Button();
             btnSave = new Button();
             btnCancel = new Button();
             
             grpStandardChecks.SuspendLayout();
             grpRegistryChecks.SuspendLayout();
+            grpPCNameValidation.SuspendLayout();
             SuspendLayout();
             
             // grpStandardChecks
@@ -295,20 +302,75 @@ namespace PCInventory
             btnRemoveRegistryCheck.UseVisualStyleBackColor = true;
             btnRemoveRegistryCheck.Click += btnRemoveRegistryCheck_Click;
             
+            // grpPCNameValidation
+            grpPCNameValidation.Controls.Add(chkEnablePCNameValidation);
+            grpPCNameValidation.Controls.Add(lblPCNamePattern);
+            grpPCNameValidation.Controls.Add(txtPCNamePattern);
+            grpPCNameValidation.Controls.Add(lblPatternHelp);
+            grpPCNameValidation.Controls.Add(btnTestPattern);
+            grpPCNameValidation.Location = new Point(10, 370);
+            grpPCNameValidation.Name = "grpPCNameValidation";
+            grpPCNameValidation.Size = new Size(770, 120);
+            grpPCNameValidation.TabIndex = 4;
+            grpPCNameValidation.TabStop = false;
+            grpPCNameValidation.Text = "PC Name Validation";
+            
+            // chkEnablePCNameValidation
+            chkEnablePCNameValidation.AutoSize = true;
+            chkEnablePCNameValidation.Location = new Point(15, 25);
+            chkEnablePCNameValidation.Name = "chkEnablePCNameValidation";
+            chkEnablePCNameValidation.Size = new Size(200, 24);
+            chkEnablePCNameValidation.TabIndex = 0;
+            chkEnablePCNameValidation.Text = "Enable PC Name Validation";
+            chkEnablePCNameValidation.UseVisualStyleBackColor = true;
+            chkEnablePCNameValidation.CheckedChanged += chkEnablePCNameValidation_CheckedChanged;
+            
+            // lblPCNamePattern
+            lblPCNamePattern.AutoSize = true;
+            lblPCNamePattern.Location = new Point(15, 55);
+            lblPCNamePattern.Name = "lblPCNamePattern";
+            lblPCNamePattern.Size = new Size(120, 20);
+            lblPCNamePattern.TabIndex = 1;
+            lblPCNamePattern.Text = "PC Name Pattern:";
+            
+            // txtPCNamePattern
+            txtPCNamePattern.Location = new Point(140, 52);
+            txtPCNamePattern.Name = "txtPCNamePattern";
+            txtPCNamePattern.Size = new Size(200, 27);
+            txtPCNamePattern.TabIndex = 2;
+            txtPCNamePattern.PlaceholderText = "e.g., AA######";
+            
+            // lblPatternHelp
+            lblPatternHelp.AutoSize = true;
+            lblPatternHelp.Location = new Point(15, 85);
+            lblPatternHelp.Name = "lblPatternHelp";
+            lblPatternHelp.Size = new Size(450, 20);
+            lblPatternHelp.TabIndex = 3;
+            lblPatternHelp.Text = "Pattern format: A = Letter (A-Z), # = Digit (0-9). Example: AA###### = PC123456";
+            
+            // btnTestPattern
+            btnTestPattern.Location = new Point(350, 50);
+            btnTestPattern.Name = "btnTestPattern";
+            btnTestPattern.Size = new Size(100, 30);
+            btnTestPattern.TabIndex = 4;
+            btnTestPattern.Text = "Test Pattern";
+            btnTestPattern.UseVisualStyleBackColor = true;
+            btnTestPattern.Click += btnTestPattern_Click;
+            
             // btnSave
-            btnSave.Location = new Point(620, 370);
+            btnSave.Location = new Point(620, 500);
             btnSave.Name = "btnSave";
             btnSave.Size = new Size(75, 30);
-            btnSave.TabIndex = 2;
+            btnSave.TabIndex = 5;
             btnSave.Text = "Save";
             btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnSave_Click;
             
             // btnCancel
-            btnCancel.Location = new Point(705, 370);
+            btnCancel.Location = new Point(705, 500);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new Size(75, 30);
-            btnCancel.TabIndex = 3;
+            btnCancel.TabIndex = 6;
             btnCancel.Text = "Cancel";
             btnCancel.UseVisualStyleBackColor = true;
             btnCancel.Click += btnCancel_Click;
@@ -316,9 +378,10 @@ namespace PCInventory
             // SettingsForm
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(790, 410);
+            ClientSize = new Size(790, 540);
             Controls.Add(grpStandardChecks);
             Controls.Add(grpRegistryChecks);
+            Controls.Add(grpPCNameValidation);
             Controls.Add(btnSave);
             Controls.Add(btnCancel);
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -330,6 +393,8 @@ namespace PCInventory
             grpStandardChecks.ResumeLayout(false);
             grpStandardChecks.PerformLayout();
             grpRegistryChecks.ResumeLayout(false);
+            grpPCNameValidation.ResumeLayout(false);
+            grpPCNameValidation.PerformLayout();
             ResumeLayout(false);
         }
 
@@ -359,6 +424,12 @@ namespace PCInventory
         private Button btnAddRegistryCheck;
         private Button btnEditRegistryCheck;
         private Button btnRemoveRegistryCheck;
+        private GroupBox grpPCNameValidation;
+        private CheckBox chkEnablePCNameValidation;
+        private TextBox txtPCNamePattern;
+        private Label lblPCNamePattern;
+        private Label lblPatternHelp;
+        private Button btnTestPattern;
         private Button btnSave;
         private Button btnCancel;
     }

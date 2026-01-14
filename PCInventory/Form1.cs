@@ -1,5 +1,6 @@
 using PCInventory.Models;
 using PCInventory.Services;
+using PCInventory.Utils;
 using System.ComponentModel;
 using System.Text;
 
@@ -369,19 +370,8 @@ public partial class Form1 : Form
 
         try
         {
-            _pcList = _fileService.ImportPCList(openFileDialog.FileName);
-            
-            // Update DataGridView with PC list
-            dataGridView.Rows.Clear();
-            foreach (var pcName in _pcList)
-            {
-                int rowIndex = dataGridView.Rows.Add();
-                dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-                dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
-            }
-
-            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from {Path.GetFileName(openFileDialog.FileName)}";
-            btnScan.Enabled = _pcList.Count > 0;
+            var importedList = _fileService.ImportPCList(openFileDialog.FileName);
+            ProcessAndLoadPCList(importedList, Path.GetFileName(openFileDialog.FileName));
         }
         catch (FileNotFoundException)
         {
@@ -407,6 +397,90 @@ public partial class Form1 : Form
         {
             MessageBox.Show($"Unexpected error importing PC list:\n{ex.Message}", 
                 "Import Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void pastePCListToolStripMenuItem_Click(object sender, EventArgs e)
+    {
+        using (var inputForm = new Form())
+        {
+            inputForm.Text = "Paste PC List";
+            inputForm.Size = new Size(500, 400);
+            inputForm.StartPosition = FormStartPosition.CenterParent;
+            inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+            inputForm.MaximizeBox = false;
+            inputForm.MinimizeBox = false;
+
+            var label = new Label
+            {
+                Text = "Enter or paste PC names (one per line):",
+                Location = new Point(10, 10),
+                Size = new Size(460, 20)
+            };
+
+            var textBox = new TextBox
+            {
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Location = new Point(10, 35),
+                Size = new Size(460, 270),
+                AcceptsReturn = true
+            };
+
+            var okButton = new Button
+            {
+                Text = "OK",
+                DialogResult = DialogResult.OK,
+                Location = new Point(310, 315),
+                Size = new Size(75, 30)
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(395, 315),
+                Size = new Size(75, 30)
+            };
+
+            inputForm.Controls.Add(label);
+            inputForm.Controls.Add(textBox);
+            inputForm.Controls.Add(okButton);
+            inputForm.Controls.Add(cancelButton);
+            inputForm.AcceptButton = okButton;
+            inputForm.CancelButton = cancelButton;
+
+            // Try to paste from clipboard automatically if available
+            if (Clipboard.ContainsText())
+            {
+                textBox.Text = Clipboard.GetText();
+            }
+
+            if (inputForm.ShowDialog() != DialogResult.OK || string.IsNullOrWhiteSpace(textBox.Text))
+                return;
+
+            try
+            {
+                // Parse the pasted text - split by newlines
+                var pastedLines = textBox.Text
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Where(line => !string.IsNullOrWhiteSpace(line))
+                    .ToList();
+
+                if (pastedLines.Count == 0)
+                {
+                    MessageBox.Show("No valid PC names found in the pasted text.", 
+                        "No Data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ProcessAndLoadPCList(pastedLines, "pasted text");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error processing pasted text:\n{ex.Message}", 
+                    "Paste Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 
@@ -1143,5 +1217,45 @@ public partial class Form1 : Form
             bytes /= 1024;
         }
         return $"{Math.Round(bytes)} {sizes[order]}";
+    }
+
+    private string SanitizePCName(string input)
+    {
+        return PCNameValidator.SanitizePCName(input, _settings.PCNamePattern, _settings.EnablePCNameValidation);
+    }
+
+    private void ProcessAndLoadPCList(List<string> rawLines, string source)
+    {
+        var originalCount = rawLines.Count;
+        _pcList = rawLines
+            .Select(line => SanitizePCName(line))
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct()
+            .ToList();
+
+        // Update DataGridView with PC list
+        dataGridView.Rows.Clear();
+        foreach (var pcName in _pcList)
+        {
+            int rowIndex = dataGridView.Rows.Add();
+            dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
+            dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
+        }
+
+        // Show feedback about sanitization if some entries were filtered
+        if (originalCount != _pcList.Count)
+        {
+            var message = $"Processed {originalCount} line(s) from {source}.\n" +
+                          $"Valid PC names: {_pcList.Count}\n" +
+                          $"Rejected/duplicates: {originalCount - _pcList.Count}";
+            MessageBox.Show(message, "PC List Processing", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} of {originalCount} PC(s) from {source}";
+        }
+        else
+        {
+            toolStripStatusLabel.Text = $"Loaded {_pcList.Count} PC(s) from {source}";
+        }
+
+        btnScan.Enabled = _pcList.Count > 0;
     }
 }
