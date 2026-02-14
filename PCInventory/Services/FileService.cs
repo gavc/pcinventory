@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using PCInventory.Models;
+using PCInventory.Utils;
 
 namespace PCInventory.Services
 {
@@ -70,16 +71,11 @@ namespace PCInventory.Services
 
         private bool IsValidPCName(string pcName)
         {
-            if (string.IsNullOrWhiteSpace(pcName) || pcName.Length > 255)
+            if (string.IsNullOrWhiteSpace(pcName))
                 return false;
 
-            // Check for invalid characters (Windows computer name rules)
-            char[] invalidChars = { '\\', '/', ':', '*', '?', '"', '<', '>', '|', ' ' };
-            
-            // Allow spaces but check for other invalid characters
-            char[] restrictedChars = { '\\', '/', ':', '*', '?', '"', '<', '>', '|' };
-            
-            return !pcName.Any(c => restrictedChars.Contains(c));
+            string sanitized = PCNameValidator.SanitizePCName(pcName, string.Empty, false);
+            return !string.IsNullOrWhiteSpace(sanitized);
         }
 
         public void ExportToCSV(List<PCInfo> pcInfoList, string filePath, AppSettings settings)
@@ -173,7 +169,13 @@ namespace PCInventory.Services
                     {
                         // Log error but continue with other entries
                         System.Diagnostics.Debug.WriteLine($"Error writing data for PC {pcInfo.PCName}: {ex.Message}");
-                        writer.WriteLine($"{EscapeCSV(pcInfo.PCName)},Error writing data: {EscapeCSV(ex.Message)}");
+                        var fallbackValues = Enumerable.Repeat(string.Empty, headers.Count).ToArray();
+                        if (fallbackValues.Length > 0)
+                            fallbackValues[0] = EscapeCSV(pcInfo.PCName);
+                        if (fallbackValues.Length > 1)
+                            fallbackValues[1] = EscapeCSV($"Error writing data: {ex.Message}");
+
+                        writer.WriteLine(string.Join(",", fallbackValues));
                     }
                 }
             }

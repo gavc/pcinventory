@@ -18,7 +18,7 @@ namespace PCInventory.Services
             _logger = new LoggingService();
         }
 
-        public async Task<PCInfo> GetPCHealthInfoAsync(string pcName)
+        public async Task<PCInfo> GetPCHealthInfoAsync(string pcName, CancellationToken cancellationToken = default)
         {
             var pcInfo = new PCInfo
             {
@@ -32,6 +32,8 @@ namespace PCInventory.Services
                 {
                     try
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         // Basic connectivity check with timeout
                         using Ping ping = new Ping();
                         PingReply reply = ping.Send(pcName, 2000); // 2 second timeout - faster detection of offline PCs
@@ -44,6 +46,7 @@ namespace PCInventory.Services
 
                         _logger.LogInfo($"Ping successful: {reply.RoundtripTime}ms", pcName);
                         pcInfo.Status = "Gathering data...";
+                        cancellationToken.ThrowIfCancellationRequested();
                         
                         // Create single WMI connection scope for all queries (Connection Pooling)
                         var connectionOptions = new ConnectionOptions
@@ -61,10 +64,12 @@ namespace PCInventory.Services
                             // Connect once and reuse for all queries
                             wmiScope.Connect();
                             _logger.LogInfo("WMI connection established", pcName);
+                            cancellationToken.ThrowIfCancellationRequested();
                             
                             // Batch #1: System Information (Make, Model, TotalRAM, LoggedOnUser)
                             if (_settings.CheckMake || _settings.CheckModel || _settings.CheckTotalRAM || _settings.CheckLoggedOnUser)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 var systemInfo = GetSystemInformationBatch(wmiScope);
                                 if (_settings.CheckMake) pcInfo.Make = systemInfo.Make;
                                 if (_settings.CheckModel) pcInfo.Model = systemInfo.Model;
@@ -79,6 +84,7 @@ namespace PCInventory.Services
                             // Batch #2: Storage Information (HDD size, free space)
                             if (_settings.CheckHDDSize || _settings.CheckFreeHDDSpace)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 var storageInfo = GetStorageInformationBatch(wmiScope);
                                 if (_settings.CheckHDDSize) 
                                 {
@@ -95,6 +101,7 @@ namespace PCInventory.Services
                             // Batch #3: Network Information (IP, MAC, connection type)
                             if (_settings.CheckIPAddress || _settings.CheckMACAddress || _settings.CheckNetworkConnectionType)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 var networkInfo = GetNetworkInformationBatch(wmiScope, pcName);
                                 if (_settings.CheckIPAddress) pcInfo.IPAddress = networkInfo.IPAddress;
                                 if (_settings.CheckMACAddress) pcInfo.MACAddress = networkInfo.MACAddress;
@@ -104,6 +111,7 @@ namespace PCInventory.Services
                             // Batch #4: BIOS/Hardware Information
                             if (_settings.CheckBIOSVersion || _settings.CheckSerialNumber)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 var biosInfo = GetBIOSInformationBatch(wmiScope);
                                 if (_settings.CheckBIOSVersion) pcInfo.BIOSVersion = biosInfo.BIOSVersion;
                                 if (_settings.CheckSerialNumber) pcInfo.SerialNumber = biosInfo.SerialNumber;
@@ -112,6 +120,7 @@ namespace PCInventory.Services
                             // Batch #5: Operating System Information
                             if (_settings.CheckWindowsVersion || _settings.CheckLastRebootTime || _settings.CheckInstallDate)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 var osInfo = GetOperatingSystemInformationBatch(wmiScope, pcName);
                                 if (_settings.CheckWindowsVersion) pcInfo.WindowsVersion = osInfo.WindowsVersion;
                                 if (_settings.CheckLastRebootTime) pcInfo.LastRebootTime = osInfo.LastRebootTime;
@@ -121,17 +130,20 @@ namespace PCInventory.Services
                             // Individual checks that can't be easily batched
                             if (_settings.CheckPendingReboot)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 pcInfo.PendingRebootStatus = CheckPendingReboot(pcName);
                             }
                             
                             if (_settings.CheckWiFiInfo)
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 pcInfo.WiFiInfo = GetWiFiInfo(pcName);
                             }
                             
                             // Get custom registry values
                             foreach (var regCheck in _settings.RegistryChecks.Where(rc => rc.Enabled))
                             {
+                                cancellationToken.ThrowIfCancellationRequested();
                                 try
                                 {
                                     var value = GetRemoteRegistryValue(pcName, regCheck.KeyPath, regCheck.ValueName);
@@ -143,8 +155,13 @@ namespace PCInventory.Services
                                 }
                             }
 
+                            cancellationToken.ThrowIfCancellationRequested();
                             pcInfo.Status = "Completed";
                             _logger.LogInfo("PC scan completed successfully", pcName);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
                         }
                         catch (UnauthorizedAccessException uaEx)
                         {
@@ -172,6 +189,10 @@ namespace PCInventory.Services
                             _logger.LogError("Unexpected error during PC scan", ex, pcName);
                         }
                     }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
                     catch (PingException pingEx)
                     {
                         pcInfo.Status = $"Network Error: {pingEx.Message}";
@@ -182,8 +203,14 @@ namespace PCInventory.Services
                         pcInfo.Status = $"Unexpected Error: {ex.Message}";
                         _logger.LogError("Unexpected error in PC health check", ex, pcName);
                     }
-                });
+                }, cancellationToken).ConfigureAwait(false);
 
+                return pcInfo;
+            }
+            catch (OperationCanceledException)
+            {
+                pcInfo.Status = "Cancelled";
+                _logger.LogInfo("PC scan cancelled", pcName);
                 return pcInfo;
             }
             catch (Exception ex)
@@ -696,9 +723,12 @@ namespace PCInventory.Services
         {
             try
             {
-                // Use a more reliable temp directory
-                string tempDir = pcName == Environment.MachineName ? @"C:\temp" : $@"\\{pcName}\C$\temp";
-                string outputFile = Path.Combine(tempDir, $"wifi_info_{DateTime.Now:yyyyMMddHHmmss}.txt");
+                // Use one stable timestamp for both write/read paths to avoid filename mismatch.
+                string timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
+                string remoteTempDir = @"C:\temp";
+                string remoteOutputFile = $@"{remoteTempDir}\wifi_info_{timestamp}.txt";
+                string networkTempDir = pcName == Environment.MachineName ? remoteTempDir : $@"\\{pcName}\C$\temp";
+                string outputFile = Path.Combine(networkTempDir, $"wifi_info_{timestamp}.txt");
                 
                 // Ensure temp directory exists
                 try
@@ -729,16 +759,15 @@ namespace PCInventory.Services
                 using var processClass2 = new ManagementClass(scope2, new ManagementPath("Win32_Process"), new ObjectGetOptions());
                 
                 using var inParams2 = processClass2.GetMethodParameters("Create");
-                inParams2["CommandLine"] = $"cmd.exe /c netsh wlan show interfaces > C:\\temp\\wifi_info_{DateTime.Now:yyyyMMddHHmmss}.txt";
+                inParams2["CommandLine"] = $"cmd.exe /c netsh wlan show interfaces > \"{remoteOutputFile}\"";
                 
-                using var outParams = processClass2.InvokeMethod("Create", inParams2, null);
-                int processId = Convert.ToInt32(outParams["ProcessId"]);
+                processClass2.InvokeMethod("Create", inParams2, null);
                 
                 // Wait for process completion
                 System.Threading.Thread.Sleep(2000);
                 
                 // Read the output file
-                string networkPath = pcName == Environment.MachineName ? outputFile : outputFile.Replace(@"C:\temp", $@"\\{pcName}\C$\temp");
+                string networkPath = outputFile;
                 
                 if (File.Exists(networkPath))
                 {

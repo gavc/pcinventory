@@ -77,6 +77,20 @@ namespace PCInventory
             btnRemoveRegistryCheck.Enabled = lstRegistryChecks.SelectedIndex >= 0;
         }
 
+        private bool FriendlyNameExists(string friendlyName, int? ignoreIndex = null)
+        {
+            for (int i = 0; i < _registryChecks.Count; i++)
+            {
+                if (ignoreIndex.HasValue && i == ignoreIndex.Value)
+                    continue;
+
+                if (string.Equals(_registryChecks[i].FriendlyName, friendlyName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
         private void btnSelectAll_Click(object sender, EventArgs e)
         {
             chkHDDSize.Checked = true;
@@ -122,12 +136,23 @@ namespace PCInventory
             var form = new AddRegistryCheckForm();
             if (form.ShowDialog() == DialogResult.OK)
             {
+                string friendlyName = form.FriendlyName.Trim();
+                if (FriendlyNameExists(friendlyName))
+                {
+                    MessageBox.Show(
+                        $"A registry check named '{friendlyName}' already exists. Friendly names must be unique.",
+                        "Duplicate Friendly Name",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 _registryChecks.Add(new RegistryCheckSetting
                 {
-                    FriendlyName = form.FriendlyName,
+                    FriendlyName = friendlyName,
                     KeyPath = form.KeyPath,
                     ValueName = form.ValueName,
-                    Enabled = true
+                    Enabled = form.IsEnabled
                 });
                 
                 RefreshRegistryChecksList();
@@ -151,7 +176,18 @@ namespace PCInventory
                 
                 if (form.ShowDialog() == DialogResult.OK)
                 {
-                    selectedCheck.FriendlyName = form.FriendlyName;
+                    string friendlyName = form.FriendlyName.Trim();
+                    if (FriendlyNameExists(friendlyName, selectedIndex))
+                    {
+                        MessageBox.Show(
+                            $"A registry check named '{friendlyName}' already exists. Friendly names must be unique.",
+                            "Duplicate Friendly Name",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    selectedCheck.FriendlyName = friendlyName;
                     selectedCheck.KeyPath = form.KeyPath;
                     selectedCheck.ValueName = form.ValueName;
                     selectedCheck.Enabled = form.IsEnabled;
@@ -322,12 +358,12 @@ namespace PCInventory
                         var sanitized = PCNameValidator.SanitizePCName(line, pattern, chkEnablePCNameValidation.Checked);
                         if (!string.IsNullOrEmpty(sanitized))
                         {
-                            results.AppendLine($"✓ \"{line}\" → \"{sanitized}\"");
+                            results.AppendLine($"[OK] \"{line}\" -> \"{sanitized}\"");
                             validCount++;
                         }
                         else
                         {
-                            results.AppendLine($"✗ \"{line}\" → (rejected)");
+                            results.AppendLine($"[X] \"{line}\" -> (rejected)");
                             invalidCount++;
                         }
                     }

@@ -14,6 +14,8 @@ public partial class Form1 : Form
     private FileService _fileService = new FileService();
     private PCHealthService? _healthService;
     private CancellationTokenSource? _cancellationTokenSource;
+    private readonly Dictionary<string, DataGridViewRow> _rowsByPcName = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _registryColumnMap = new(StringComparer.OrdinalIgnoreCase);
     private string _settingsFilePath;
     private LoggingService _logger = new LoggingService();
 
@@ -110,6 +112,8 @@ public partial class Form1 : Form
     private void SetupDataGridViewColumns()
     {
         dataGridView.Columns.Clear();
+        _rowsByPcName.Clear();
+        _registryColumnMap.Clear();
         
         // Add the base columns
         dataGridView.Columns.Add("colPCName", "PC Name");
@@ -171,9 +175,11 @@ public partial class Form1 : Form
         }
             
         // Add registry check columns
+        var usedRegistryColumnNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var regCheck in _settings.RegistryChecks.Where(rc => rc.Enabled))
         {
-            string columnName = $"colReg_{regCheck.FriendlyName.Replace(" ", "_")}";
+            string columnName = BuildUniqueRegistryColumnName(regCheck.FriendlyName, usedRegistryColumnNames);
+            _registryColumnMap[regCheck.FriendlyName] = columnName;
             dataGridView.Columns.Add(columnName, regCheck.FriendlyName);
         }
 
@@ -182,145 +188,80 @@ public partial class Form1 : Form
         {
             col.ReadOnly = true;
             
-            // Enable sorting for numeric columns (they use SortCompare event)
-            if (col.Name == "colHDDSize" || 
-                col.Name == "colFreeHDDSpace" || 
-                col.Name == "colTotalRAM")
-            {
-                col.SortMode = DataGridViewColumnSortMode.Automatic;
-            }
-            else
-            {
-                col.SortMode = DataGridViewColumnSortMode.Automatic;
-            }
+            col.SortMode = DataGridViewColumnSortMode.Automatic;
         }
     }
 
-    private void scanSinglePCToolStripMenuItem_Click(object sender, EventArgs e)
+    private async void scanSinglePCToolStripMenuItem_Click(object sender, EventArgs e)
     {
         // Create an input dialog to get PC name
-        string pcName = Microsoft.VisualBasic.Interaction.InputBox(
+        string inputPcName = Microsoft.VisualBasic.Interaction.InputBox(
             "Enter the PC name or IP address to scan:", 
             "Scan Single PC", 
             Environment.MachineName, // Default to local machine name
             -1, -1);
         
         // Check if the user cancelled or entered an empty value
-        if (string.IsNullOrWhiteSpace(pcName))
+        if (string.IsNullOrWhiteSpace(inputPcName))
             return;
-            
+
+        string pcName = PCNameValidator.SanitizePCName(inputPcName, string.Empty, false);
+        if (string.IsNullOrWhiteSpace(pcName))
+        {
+            MessageBox.Show(
+                "The PC name or IP address contains unsupported characters.",
+                "Invalid PC Name",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+             
         // Setup the grid view if needed
         SetupDataGridViewColumns();
-            
+             
         // Clear existing data and add this PC
-        dataGridView.Rows.Clear();
+        ClearGridRows();
         _pcInfoList.Clear();
         _pcList = new List<string> { pcName };
         
         // Add row for the PC
-        int rowIndex = dataGridView.Rows.Add();
-        dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-        dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Waiting...";
+        var row = GetOrCreateRow(pcName);
+        row.Cells["colStatus"].Value = "Waiting...";
         
         // Start scanning
-        ScanSelectedPCs();
+        await ScanSelectedPCsAsync();
     }
     
-    private async void ScanSelectedPCs()
+    private async Task ScanSelectedPCsAsync()
     {
         // Update UI for scanning
         SetUIForScanning(true);
         
         try
         {
-            // Create cancellation token source
+            _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = new CancellationTokenSource();
             var token = _cancellationTokenSource.Token;
+            int maxConcurrentScans = GetMaxConcurrentScans(_pcList.Count);
 
-            // Create tasks for all PCs
-            var tasks = new List<Task<PCInfo>>();
-            foreach (var pcName in _pcList)
-            {
-                tasks.Add(Task.Run(async () => 
-                {
-                    try
-                    {
-                        if (_healthService != null)
-                        {
-                            var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName);
-                            UpdatePCStatus(pcInfo);
-                            return pcInfo;
-                        }
-                        else
-                        {
-                            var pcInfo = new PCInfo { PCName = pcName, Status = "Error: Health service not initialized" };
-                            UpdatePCStatus(pcInfo);
-                            return pcInfo;
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        var pcInfo = new PCInfo { PCName = pcName, Status = "Cancelled" };
-                        UpdatePCStatus(pcInfo);
-                        return pcInfo;
-                    }
-                    catch (Exception ex)
-                    {
-                        var pcInfo = new PCInfo { PCName = pcName, Status = $"Task Error: {ex.Message}" };
-                        UpdatePCStatus(pcInfo);
-                        return pcInfo;
-                    }
-                }, token));
-            }
+            using var throttler = new SemaphoreSlim(maxConcurrentScans, maxConcurrentScans);
+            var tasks = _pcList.Select(pcName => ScanPcAsync(pcName, throttler, token)).ToList();
+            var results = await Task.WhenAll(tasks);
 
-            // Wait for all tasks or cancellation
-            try
-            {
-                // Use Task.WhenAll to wait for all tasks but handle each individually for better status reporting
-                var completionTask = Task.WhenAll(tasks);
-                
-                try
-                {
-                    await completionTask;
-                    _pcInfoList = tasks.Where(t => t.IsCompletedSuccessfully).Select(t => t.Result).ToList();
-                }
-                catch (Exception)
-                {
-                    // Some tasks failed, but we still want to process all completed ones
-                    _pcInfoList = tasks.Where(t => t.IsCompletedSuccessfully).Select(t => t.Result).ToList();
-                    
-                    // Ensure all failed tasks get final status update
-                    foreach (var task in tasks.Where(t => t.IsFaulted))
-                    {
-                        var pcName = _pcList[tasks.IndexOf(task)];
-                        var exception = task.Exception?.GetBaseException();
-                        UpdatePCStatus(new PCInfo { 
-                            PCName = pcName, 
-                            Status = $"Task Failed: {exception?.Message ?? "Unknown error"}" 
-                        });
-                    }
-                }
-                
-                toolStripStatusLabel.Text = $"Scan completed - {_pcInfoList.Count} of {_pcList.Count} PCs processed successfully";
-                exportToolStripMenuItem.Enabled = _pcInfoList.Count > 0;
-            }
-            catch (OperationCanceledException)
+            _pcInfoList = results
+                .Where(pc => pc.Status == "Completed")
+                .ToList();
+
+            if (token.IsCancellationRequested || results.Any(pc => pc.Status == "Cancelled"))
             {
                 toolStripStatusLabel.Text = "Scan cancelled";
-                
-                // Make sure all remaining "Waiting..." statuses are updated
-                foreach (var pcName in _pcList)
-                {
-                    for (int i = 0; i < dataGridView.Rows.Count; i++)
-                    {
-                        if (dataGridView.Rows[i].Cells["colPCName"].Value?.ToString() == pcName &&
-                            dataGridView.Rows[i].Cells["colStatus"].Value?.ToString() == "Waiting...")
-                        {
-                            dataGridView.Rows[i].Cells["colStatus"].Value = "Cancelled";
-                        }
-                    }
-                }
             }
+            else
+            {
+                toolStripStatusLabel.Text = $"Scan completed - {_pcInfoList.Count} of {_pcList.Count} PCs processed successfully";
+            }
+
+            exportToolStripMenuItem.Enabled = _pcInfoList.Count > 0;
         }
         catch (OutOfMemoryException)
         {
@@ -329,27 +270,82 @@ public partial class Form1 : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error during scanning: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}", 
+            _logger.LogError("Unhandled error during scan operation", ex);
+            MessageBox.Show("An unexpected error occurred during scanning. Please check logs for details.", 
                 "Scan Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
             // Ensure all statuses are updated before completing
-            for (int i = 0; i < dataGridView.Rows.Count; i++)
+            foreach (DataGridViewRow row in dataGridView.Rows)
             {
-                if (dataGridView.Rows[i].Cells["colStatus"].Value?.ToString() == "Waiting...")
+                if (row.Cells["colStatus"].Value?.ToString() == "Waiting...")
                 {
-                    var pcName = dataGridView.Rows[i].Cells["colPCName"].Value?.ToString();
-                    dataGridView.Rows[i].Cells["colStatus"].Value = "Not scanned";
+                    row.Cells["colStatus"].Value = "Not scanned";
                 }
             }
-            
+
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
             SetUIForScanning(false);
         }
     }
-    
 
-    private void btnScan_Click(object sender, EventArgs e)
+    private async Task<PCInfo> ScanPcAsync(string pcName, SemaphoreSlim throttler, CancellationToken token)
+    {
+        bool lockTaken = false;
+        try
+        {
+            await throttler.WaitAsync(token);
+            lockTaken = true;
+            token.ThrowIfCancellationRequested();
+
+            if (_healthService == null)
+            {
+                var serviceError = new PCInfo
+                {
+                    PCName = pcName,
+                    Status = "Error: Health service not initialized"
+                };
+                UpdatePCStatus(serviceError);
+                return serviceError;
+            }
+
+            var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName, token);
+            UpdatePCStatus(pcInfo);
+            return pcInfo;
+        }
+        catch (OperationCanceledException)
+        {
+            var cancelled = new PCInfo { PCName = pcName, Status = "Cancelled" };
+            UpdatePCStatus(cancelled);
+            return cancelled;
+        }
+        catch (Exception ex)
+        {
+            var failed = new PCInfo { PCName = pcName, Status = $"Task Error: {ex.Message}" };
+            UpdatePCStatus(failed);
+            return failed;
+        }
+        finally
+        {
+            if (lockTaken)
+            {
+                throttler.Release();
+            }
+        }
+    }
+
+    private static int GetMaxConcurrentScans(int pcCount)
+    {
+        if (pcCount <= 1)
+            return 1;
+
+        int cpuBased = Math.Clamp(Environment.ProcessorCount * 2, 4, 16);
+        return Math.Min(cpuBased, pcCount);
+    }
+
+    private async void btnScan_Click(object sender, EventArgs e)
     {
         if (_pcList.Count == 0)
         {
@@ -358,21 +354,24 @@ public partial class Form1 : Form
         }
 
         // Clear the grid and populate with PC names and waiting status
-        dataGridView.Rows.Clear();
+        ClearGridRows();
         foreach (var pcName in _pcList)
         {
-            int rowIndex = dataGridView.Rows.Add();
-            dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-            dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Waiting...";
+            var row = GetOrCreateRow(pcName);
+            row.Cells["colStatus"].Value = "Waiting...";
         }
         
         // Start scanning
-        ScanSelectedPCs();
+        await ScanSelectedPCsAsync();
     }
 
     private void btnStop_Click(object sender, EventArgs e)
     {
-        _cancellationTokenSource?.Cancel();
+        if (_cancellationTokenSource == null)
+            return;
+
+        _cancellationTokenSource.Cancel();
+        btnStop.Enabled = false;
         toolStripStatusLabel.Text = "Cancelling scan...";
     }
 
@@ -578,7 +577,7 @@ public partial class Form1 : Form
 
                 if (_pcInfoList.Count > 0)
                 {
-                    dataGridView.Rows.Clear();
+                    ClearGridRows();
                     foreach (var pcInfo in _pcInfoList)
                     {
                         AddOrUpdateRow(pcInfo);
@@ -586,12 +585,11 @@ public partial class Form1 : Form
                 }
                 else if (_pcList.Count > 0)
                 {
-                    dataGridView.Rows.Clear();
+                    ClearGridRows();
                     foreach (var pcName in _pcList)
                     {
-                        int rowIndex = dataGridView.Rows.Add();
-                        dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-                        dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
+                        var row = GetOrCreateRow(pcName);
+                        row.Cells["colStatus"].Value = "Not Started";
                     }
                 }
             }
@@ -640,99 +638,83 @@ public partial class Form1 : Form
     
     private void AddOrUpdateRow(PCInfo pcInfo)
     {
-        // Find existing row or add new one
-        int rowIndex = -1;
-        for (int i = 0; i < dataGridView.Rows.Count; i++)
-        {
-            if (dataGridView.Rows[i].Cells["colPCName"].Value?.ToString() == pcInfo.PCName)
-            {
-                rowIndex = i;
-                break;
-            }
-        }
-        
-        if (rowIndex == -1)
-        {
-            rowIndex = dataGridView.Rows.Add();
-        }
-        
+        var row = GetOrCreateRow(pcInfo.PCName);
+
         // Update the row with PC info
-        dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcInfo.PCName;
-        dataGridView.Rows[rowIndex].Cells["colStatus"].Value = pcInfo.Status;
+        row.Cells["colPCName"].Value = pcInfo.PCName;
+        row.Cells["colStatus"].Value = pcInfo.Status;
         
         if (pcInfo.Status == "Completed")
         {
             // Add data for all enabled columns
             if (_settings.CheckHDDSize && dataGridView.Columns.Contains("colHDDSize"))
-                dataGridView.Rows[rowIndex].Cells["colHDDSize"].Value = pcInfo.HDDSizeBytes;
+                row.Cells["colHDDSize"].Value = pcInfo.HDDSizeBytes;
                 
             if (_settings.CheckFreeHDDSpace && dataGridView.Columns.Contains("colFreeHDDSpace"))
-                dataGridView.Rows[rowIndex].Cells["colFreeHDDSpace"].Value = pcInfo.FreeHDDSpaceBytes;
+                row.Cells["colFreeHDDSpace"].Value = pcInfo.FreeHDDSpaceBytes;
                 
             if (_settings.CheckTotalRAM && dataGridView.Columns.Contains("colTotalRAM"))
-                dataGridView.Rows[rowIndex].Cells["colTotalRAM"].Value = pcInfo.TotalRAMBytes;
+                row.Cells["colTotalRAM"].Value = pcInfo.TotalRAMBytes;
                 
             if (_settings.CheckIPAddress && dataGridView.Columns.Contains("colIPAddress"))
-                dataGridView.Rows[rowIndex].Cells["colIPAddress"].Value = pcInfo.IPAddress;
+                row.Cells["colIPAddress"].Value = pcInfo.IPAddress;
                 
             if (_settings.CheckMACAddress && dataGridView.Columns.Contains("colMACAddress"))
-                dataGridView.Rows[rowIndex].Cells["colMACAddress"].Value = pcInfo.MACAddress;
+                row.Cells["colMACAddress"].Value = pcInfo.MACAddress;
                 
             if (_settings.CheckLoggedOnUser && dataGridView.Columns.Contains("colLoggedOnUser"))
-                dataGridView.Rows[rowIndex].Cells["colLoggedOnUser"].Value = pcInfo.LoggedOnUser;
+                row.Cells["colLoggedOnUser"].Value = pcInfo.LoggedOnUser;
                 
             if (_settings.CheckLastRebootTime && dataGridView.Columns.Contains("colLastRebootTime"))
-                dataGridView.Rows[rowIndex].Cells["colLastRebootTime"].Value = pcInfo.LastRebootTime;
+                row.Cells["colLastRebootTime"].Value = pcInfo.LastRebootTime;
                 
             if (_settings.CheckMake && dataGridView.Columns.Contains("colMake"))
-                dataGridView.Rows[rowIndex].Cells["colMake"].Value = pcInfo.Make;
+                row.Cells["colMake"].Value = pcInfo.Make;
                 
             if (_settings.CheckModel && dataGridView.Columns.Contains("colModel"))
-                dataGridView.Rows[rowIndex].Cells["colModel"].Value = pcInfo.Model;
+                row.Cells["colModel"].Value = pcInfo.Model;
                 
             if (_settings.CheckBIOSVersion && dataGridView.Columns.Contains("colBIOSVersion"))
-                dataGridView.Rows[rowIndex].Cells["colBIOSVersion"].Value = pcInfo.BIOSVersion;
+                row.Cells["colBIOSVersion"].Value = pcInfo.BIOSVersion;
                 
             if (_settings.CheckWindowsVersion && dataGridView.Columns.Contains("colWindowsVersion"))
-                dataGridView.Rows[rowIndex].Cells["colWindowsVersion"].Value = pcInfo.WindowsVersion;
+                row.Cells["colWindowsVersion"].Value = pcInfo.WindowsVersion;
                 
             if (_settings.CheckInstallDate && dataGridView.Columns.Contains("colInstallDate"))
-                dataGridView.Rows[rowIndex].Cells["colInstallDate"].Value = string.IsNullOrWhiteSpace(pcInfo.InstallDate)
+                row.Cells["colInstallDate"].Value = string.IsNullOrWhiteSpace(pcInfo.InstallDate)
                     ? "N/A"
                     : pcInfo.InstallDate;
 
             if (_settings.CheckSerialNumber && dataGridView.Columns.Contains("colSerialNumber"))
-                dataGridView.Rows[rowIndex].Cells["colSerialNumber"].Value = pcInfo.SerialNumber;
+                row.Cells["colSerialNumber"].Value = pcInfo.SerialNumber;
 
             if (_settings.CheckPendingReboot && dataGridView.Columns.Contains("colPendingReboot"))
             {
-                dataGridView.Rows[rowIndex].Cells["colPendingReboot"].Value = pcInfo.PendingRebootStatus;
+                row.Cells["colPendingReboot"].Value = pcInfo.PendingRebootStatus;
             }
             
             if (_settings.CheckNetworkConnectionType && dataGridView.Columns.Contains("colNetworkConnectionType"))
             {
-                dataGridView.Rows[rowIndex].Cells["colNetworkConnectionType"].Value = pcInfo.NetworkConnectionType;
+                row.Cells["colNetworkConnectionType"].Value = pcInfo.NetworkConnectionType;
             }
             
             if (_settings.CheckWiFiInfo && dataGridView.Columns.Contains("colWiFiInfo"))
             {
-                dataGridView.Rows[rowIndex].Cells["colWiFiInfo"].Value = pcInfo.WiFiInfo;
+                row.Cells["colWiFiInfo"].Value = pcInfo.WiFiInfo;
             }
                 
             // Add registry check values
             foreach (var regCheck in _settings.RegistryChecks.Where(rc => rc.Enabled))
             {
-                string columnName = $"colReg_{regCheck.FriendlyName.Replace(" ", "_")}";
-                if (dataGridView.Columns.Contains(columnName) && 
+                if (_registryColumnMap.TryGetValue(regCheck.FriendlyName, out string? columnName) &&
+                    dataGridView.Columns.Contains(columnName) && 
                     pcInfo.CustomRegistryValues.TryGetValue(regCheck.FriendlyName, out string? value) && 
                     value != null)
                 {
-                    dataGridView.Rows[rowIndex].Cells[columnName].Value = value;
+                    row.Cells[columnName].Value = value;
                 }
             }
         }
-        
-        dataGridView.Refresh();
     }
 
     private void DataGridView_CellMouseDown(object? sender, DataGridViewCellMouseEventArgs e)
@@ -751,34 +733,25 @@ public partial class Form1 : Form
         }
     }
 
-    private void rescanPCMenuItem_Click(object sender, EventArgs e)
+    private async void rescanPCMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
+        if (!TryGetSelectedPcName(out string pcName))
             return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
-            return;
-            
-        // Update status to waiting
-        dataGridView.SelectedRows[0].Cells["colStatus"].Value = "Waiting...";
+
+        // Update status to waiting.
+        var row = GetOrCreateRow(pcName);
+        row.Cells["colStatus"].Value = "Waiting...";
         
         // Scan just this PC
         _pcList = new List<string> { pcName };
         
         // Start the scan
-        ScanSinglePC(pcName);
+        await ScanSinglePCAsync(pcName);
     }
 
     private void restartPCMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
-            return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
+        if (!TryGetSelectedPcName(out string pcName))
             return;
             
         // Confirm restart
@@ -806,15 +779,7 @@ public partial class Form1 : Form
                     if (success)
                     {
                         toolStripStatusLabel.Text = $"Restart command sent to {pcName}";
-                        // Update status in the grid
-                        for (int i = 0; i < dataGridView.Rows.Count; i++)
-                        {
-                            if (dataGridView.Rows[i].Cells["colPCName"].Value?.ToString() == pcName)
-                            {
-                                dataGridView.Rows[i].Cells["colStatus"].Value = "Restarting...";
-                                break;
-                            }
-                        }
+                        GetOrCreateRow(pcName).Cells["colStatus"].Value = "Restarting...";
                     }
                     else
                     {
@@ -836,28 +801,49 @@ public partial class Form1 : Form
         });
     }
 
-    private async void ScanSinglePC(string pcName)
+    private async Task ScanSinglePCAsync(string pcName)
     {
         // Similar to ScanSelectedPCs but just for one PC
         SetUIForScanning(true);
         
         try
         {
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = new CancellationTokenSource();
+            var token = _cancellationTokenSource.Token;
+
             if (_healthService != null)
             {
-                var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName);
+                var pcInfo = await _healthService.GetPCHealthInfoAsync(pcName, token);
                 UpdatePCStatus(pcInfo);
                 
                 // Update the pcInfoList
-                var existingIndex = _pcInfoList.FindIndex(p => p.PCName == pcName);
-                if (existingIndex >= 0)
-                    _pcInfoList[existingIndex] = pcInfo;
+                if (pcInfo.Status == "Completed")
+                {
+                    var existingIndex = _pcInfoList.FindIndex(p => p.PCName == pcName);
+                    if (existingIndex >= 0)
+                        _pcInfoList[existingIndex] = pcInfo;
+                    else
+                        _pcInfoList.Add(pcInfo);
+
+                    toolStripStatusLabel.Text = $"Scan of {pcName} completed";
+                }
+                else if (pcInfo.Status == "Cancelled")
+                {
+                    toolStripStatusLabel.Text = $"Scan of {pcName} cancelled";
+                }
                 else
-                    _pcInfoList.Add(pcInfo);
-                    
-                toolStripStatusLabel.Text = $"Scan of {pcName} completed";
+                {
+                    toolStripStatusLabel.Text = $"Scan of {pcName} finished with status: {pcInfo.Status}";
+                }
+
                 exportToolStripMenuItem.Enabled = _pcInfoList.Count > 0;
             }
+        }
+        catch (OperationCanceledException)
+        {
+            UpdatePCStatus(new PCInfo { PCName = pcName, Status = "Cancelled" });
+            toolStripStatusLabel.Text = $"Scan of {pcName} cancelled";
         }
         catch (Exception ex)
         {
@@ -865,6 +851,8 @@ public partial class Form1 : Form
         }
         finally
         {
+            _cancellationTokenSource?.Dispose();
+            _cancellationTokenSource = null;
             SetUIForScanning(false);
         }
     }
@@ -956,12 +944,7 @@ public partial class Form1 : Form
 
     private void rdpMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
-            return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
+        if (!TryGetSelectedPcName(out string pcName))
             return;
             
         try
@@ -985,12 +968,7 @@ public partial class Form1 : Form
 
     private void openCDriveMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
-            return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
+        if (!TryGetSelectedPcName(out string pcName))
             return;
             
         try
@@ -1015,12 +993,7 @@ public partial class Form1 : Form
 
     private void gpUpdateMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
-            return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
+        if (!TryGetSelectedPcName(out string pcName))
             return;
             
         // Confirm GPUpdate
@@ -1069,21 +1042,16 @@ public partial class Form1 : Form
 
     private void pingMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
+        if (!TryGetSelectedPcName(out string pcName))
             return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
-            return;
-            
-        // Launch Command Prompt with ping command
+
+        // Launch ping directly without cmd.exe to avoid command injection.
         try
         {
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/K ping {pcName} -t",
+                FileName = "ping.exe",
+                Arguments = $"{pcName} -t",
                 UseShellExecute = true
             };
             
@@ -1098,21 +1066,16 @@ public partial class Form1 : Form
 
     private void tracertMenuItem_Click(object sender, EventArgs e)
     {
-        if (dataGridView.SelectedRows.Count == 0)
+        if (!TryGetSelectedPcName(out string pcName))
             return;
-            
-        // Get the PC name from the selected row
-        string? pcName = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString();
-        if (string.IsNullOrEmpty(pcName))
-            return;
-            
-        // Launch Command Prompt with tracert command
+
+        // Launch tracert directly without cmd.exe to avoid command injection.
         try
         {
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = $"/K tracert {pcName}",
+                FileName = "tracert.exe",
+                Arguments = pcName,
                 UseShellExecute = true
             };
             
@@ -1155,10 +1118,11 @@ public partial class Form1 : Form
     // --- Help Menu Event Handlers ---
     private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
     {
+        string version = Application.ProductVersion;
         MessageBox.Show(
             "PC Inventory Tool\n\n" +
-            "Version 0.3.0\n" +
-            "© 2025 Gav Cormack\n\n" +
+            $"Version {version}\n" +
+            "(c) 2025 Gav Cormack\n\n" +
             "App icon by Flaticon: https://www.flaticon.com/\n",
             "About",
             MessageBoxButtons.OK,
@@ -1295,22 +1259,91 @@ public partial class Form1 : Form
         return PCNameValidator.SanitizePCName(input, _settings.PCNamePattern, _settings.EnablePCNameValidation);
     }
 
+    private bool TryGetSelectedPcName(out string pcName)
+    {
+        pcName = string.Empty;
+        if (dataGridView.SelectedRows.Count == 0)
+            return false;
+
+        string candidate = dataGridView.SelectedRows[0].Cells["colPCName"].Value?.ToString()?.Trim() ?? string.Empty;
+        if (!PCNameValidator.IsSafeHost(candidate))
+        {
+            MessageBox.Show(
+                "The selected PC name contains unsupported characters.",
+                "Invalid PC Name",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return false;
+        }
+
+        pcName = candidate;
+        return true;
+    }
+
+    private void ClearGridRows()
+    {
+        dataGridView.Rows.Clear();
+        _rowsByPcName.Clear();
+    }
+
+    private DataGridViewRow GetOrCreateRow(string pcName)
+    {
+        if (_rowsByPcName.TryGetValue(pcName, out DataGridViewRow? existingRow) &&
+            existingRow.DataGridView == dataGridView)
+        {
+            return existingRow;
+        }
+
+        int rowIndex = dataGridView.Rows.Add();
+        DataGridViewRow row = dataGridView.Rows[rowIndex];
+        row.Cells["colPCName"].Value = pcName;
+        _rowsByPcName[pcName] = row;
+        return row;
+    }
+
+    private static string BuildUniqueRegistryColumnName(string friendlyName, ISet<string> usedColumnNames)
+    {
+        string baseName = BuildRegistryColumnBaseName(friendlyName);
+        string candidate = baseName;
+        int suffix = 1;
+
+        while (!usedColumnNames.Add(candidate))
+        {
+            candidate = $"{baseName}_{suffix}";
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private static string BuildRegistryColumnBaseName(string friendlyName)
+    {
+        var safeChars = friendlyName
+            .Select(c => char.IsLetterOrDigit(c) ? c : '_')
+            .ToArray();
+
+        string normalized = new string(safeChars).Trim('_');
+        if (string.IsNullOrWhiteSpace(normalized))
+            normalized = "Value";
+
+        return $"colReg_{normalized}";
+    }
+
     private void ProcessAndLoadPCList(List<string> rawLines, string source)
     {
         var originalCount = rawLines.Count;
         _pcList = rawLines
             .Select(line => SanitizePCName(line))
             .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         // Update DataGridView with PC list
-        dataGridView.Rows.Clear();
+        ClearGridRows();
         foreach (var pcName in _pcList)
         {
-            int rowIndex = dataGridView.Rows.Add();
-            dataGridView.Rows[rowIndex].Cells["colPCName"].Value = pcName;
-            dataGridView.Rows[rowIndex].Cells["colStatus"].Value = "Not Started";
+            var row = GetOrCreateRow(pcName);
+            row.Cells["colStatus"].Value = "Not Started";
         }
 
         // Show feedback about sanitization if some entries were filtered
@@ -1330,3 +1363,4 @@ public partial class Form1 : Form
         btnScan.Enabled = _pcList.Count > 0;
     }
 }
+

@@ -5,6 +5,10 @@ namespace PCInventory.Utils
 {
     public static class PCNameValidator
     {
+        private static readonly Regex SafeHostRegex = new(
+            @"^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         /// <summary>
         /// Sanitizes a PC name by removing whitespace and optionally validating against a pattern.
         /// </summary>
@@ -20,11 +24,15 @@ namespace PCInventory.Utils
             // Step 1: Remove all whitespace and convert to uppercase
             var sanitized = new string(input.Where(c => !char.IsWhiteSpace(c)).ToArray()).ToUpper();
 
-            // Step 2: If validation is disabled, just return the sanitized name
+            // Step 2: Always enforce a safe host/IP character set.
+            if (!IsSafeHost(sanitized))
+                return string.Empty;
+
+            // Step 3: If validation is disabled, just return the sanitized name
             if (!enableValidation || string.IsNullOrWhiteSpace(pattern))
                 return sanitized;
 
-            // Step 3: Convert pattern to regex using StringBuilder for better performance
+            // Step 4: Convert pattern to regex using StringBuilder for better performance
             // A = Letter (A-Z), # = Digit (0-9)
             var regexPattern = new StringBuilder("^(");
             foreach (char c in pattern)
@@ -38,7 +46,7 @@ namespace PCInventory.Utils
             }
             regexPattern.Append(")$");
 
-            // Step 4: Try to extract the matching pattern
+            // Step 5: Try to extract the matching pattern
             try
             {
                 var regex = new Regex(regexPattern.ToString());
@@ -58,6 +66,14 @@ namespace PCInventory.Utils
                 // If regex fails, return empty
                 return string.Empty;
             }
+        }
+
+        public static bool IsSafeHost(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            return SafeHostRegex.IsMatch(value.Trim());
         }
     }
 }
