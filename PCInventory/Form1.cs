@@ -205,7 +205,7 @@ public partial class Form1 : Form
         if (string.IsNullOrWhiteSpace(inputPcName))
             return;
 
-        string pcName = PCNameValidator.SanitizePCName(inputPcName, string.Empty, false);
+        string pcName = SanitizeSingleScanTarget(inputPcName);
         if (string.IsNullOrWhiteSpace(pcName))
         {
             MessageBox.Show(
@@ -1254,9 +1254,14 @@ public partial class Form1 : Form
         return $"{Math.Round(bytes)} {sizes[order]}";
     }
 
-    private string SanitizePCName(string input)
+    private string SanitizeImportedPcName(string input)
     {
         return PCNameValidator.SanitizePCName(input, _settings.PCNamePattern, _settings.EnablePCNameValidation);
+    }
+
+    private static string SanitizeSingleScanTarget(string input)
+    {
+        return PCNameValidator.SanitizePCName(input, string.Empty, false);
     }
 
     private bool TryGetSelectedPcName(out string pcName)
@@ -1333,7 +1338,7 @@ public partial class Form1 : Form
     {
         var originalCount = rawLines.Count;
         _pcList = rawLines
-            .Select(line => SanitizePCName(line))
+            .Select(line => SanitizeImportedPcName(line))
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();

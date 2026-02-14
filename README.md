@@ -61,7 +61,7 @@ PC Inventory is a .NET 10.0 Windows application that collects detailed system in
 ### Quick Start
 
 1. **Launch the application** and you'll see the main inventory interface
-2. **Add computers** by entering hostnames or IP addresses in the input field
+2. **Add computers** by importing a list, pasting a list, or using **Scan Single PC** from the menu
 3. **Configure settings** (optional) via the Settings menu for timeouts and custom registry checks
 4. **Start inventory collection** by clicking "Get PC Info" to gather data from all added computers
 5. **Export results** to CSV for reporting and analysis
@@ -79,12 +79,18 @@ PCInventory/
 │   ├── FileService.cs         # File I/O operations
 │   ├── LoggingService.cs      # Application logging
 │   └── PCHealthService.cs     # WMI data collection
-├── Forms/
-│   ├── Form1.cs              # Main application interface
-│   ├── SettingsForm.cs       # Settings configuration
-│   └── AddRegistryCheckForm.cs # Custom registry check setup
+├── Form1.cs                   # Main application interface
+├── SettingsForm.cs            # Settings configuration
+├── AddRegistryCheckForm.cs    # Custom registry check setup
+├── Utils/
+│   └── PCNameValidator.cs     # Hostname/IP sanitization and validation
 └── Program.cs                # Application entry point
 ```
+
+### PC Name Validation Behavior
+- **Imported/pasted lists**: names are sanitized and optionally validated against the configured PC name pattern.
+- **Scan Single PC**: input is validated as a safe hostname/IP target and does **not** enforce the optional naming pattern.
+- **Invalid input handling**: unsupported characters are rejected before scan execution.
 
 ### Key Components
 
@@ -215,6 +221,12 @@ For support, bug reports, or feature requests, please:
 3. Include log files and system information for bug reports
 
 ## 🔄 Version History
+
+### Version 0.3.3 (Stability Release - February 14, 2026)
+- Fixed single-PC scan validation to allow safe localhost/machine-name targets without optional naming-pattern rejection
+- Improved scan error handling to avoid exposing stack traces in UI dialogs while preserving full log diagnostics
+- Clarified host validation behavior in documentation (import/paste vs single scan)
+- Updated GitHub release workflow to use .NET 10 SDK for tag-triggered release builds
 
 ### Version 0.3.0 (.NET 10 Upgrade - December 5, 2025)
 - **Upgraded to .NET 10.0** from .NET 8.0
